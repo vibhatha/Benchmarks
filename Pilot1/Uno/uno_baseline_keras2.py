@@ -2,6 +2,7 @@
 
 from __future__ import division, print_function
 
+import time
 import logging
 import os
 import random
@@ -33,6 +34,8 @@ mpl.use('Agg')
 logger = logging.getLogger(__name__)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+def seperator_print():
+    print("====================================================")
 
 def set_seed(seed):
     os.environ['PYTHONHASHSEED'] = '0'
@@ -301,6 +304,7 @@ def run(params):
         K.set_session(tf.Session(config=config))
 
     loader = CombinedDataLoader(seed=args.rng_seed)
+    t1 = time.time()
     loader.load(cache=args.cache,
                 ncols=args.feature_subsample,
                 agg_dose=args.agg_dose,
@@ -319,13 +323,16 @@ def run(params):
                 embed_feature_source=not args.no_feature_source,
                 encode_response_source=not args.no_response_source,
                 )
-
+    seperator_print()
+    print(f"CombinedDataLoader.load : Time = {time.time() - t1} s")
+    seperator_print()
     target = args.agg_dose or 'Growth'
     val_split = args.validation_split
     train_split = 1 - val_split
 
     if args.export_csv:
         fname = args.export_csv
+        t1 = time.time()
         loader.partition_data(cv_folds=args.cv, train_split=train_split, val_split=val_split,
                               cell_types=args.cell_types, by_cell=args.by_cell, by_drug=args.by_drug,
                               cell_subset_path=args.cell_subset_path, drug_subset_path=args.drug_subset_path)
@@ -340,9 +347,13 @@ def run(params):
         if args.growth_bins > 1:
             df = uno_data.discretize(df, 'Growth', bins=args.growth_bins)
         df.to_csv(fname, sep='\t', index=False, float_format="%.3g")
+        seperator_print()
+        print(f"args.export_csv: Time = {time.time() - t1} s")
+        seperator_print()
         return
 
     if args.export_data:
+        t1 = time.time()
         fname = args.export_data
         loader.partition_data(cv_folds=args.cv, train_split=train_split, val_split=val_split,
                               cell_types=args.cell_types, by_cell=args.by_cell, by_drug=args.by_drug,
@@ -368,6 +379,9 @@ def run(params):
                 logger.info('Generating {} dataset. {} / {}'.format(partition, i, gen.steps))
         store.close()
         logger.info('Completed generating {}'.format(fname))
+        seperator_print()
+        print(f"args.export_data: Time = {time.time() - t1} s")
+        seperator_print()
         return
 
     loader.partition_data(cv_folds=args.cv, train_split=train_split, val_split=val_split,

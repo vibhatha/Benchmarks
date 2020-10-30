@@ -1,5 +1,6 @@
 from __future__ import print_function
 
+import time
 import collections
 import json
 import logging
@@ -13,7 +14,7 @@ import keras
 
 from itertools import cycle, islice
 
-from sklearn.preprocessing import Imputer
+from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, MaxAbsScaler
 from sklearn.model_selection import ShuffleSplit, KFold
 
@@ -76,7 +77,7 @@ def impute_and_scale(df, scaling='std', imputing='mean', dropna='all'):
     if imputing is None or imputing.lower() == 'none':
         mat = df.values
     else:
-        imputer = Imputer(strategy=imputing, axis=0)
+        imputer = SimpleImputer(strategy=imputing)
         mat = imputer.fit_transform(df)
 
     if scaling is None or scaling.lower() == 'none':
@@ -94,6 +95,8 @@ def impute_and_scale(df, scaling='std', imputing='mean', dropna='all'):
 
     return df
 
+def seperator_print():
+    print("====================================================")
 
 def discretize(df, col, bins=2, cutoffs=None):
     y = df[col]
@@ -107,13 +110,18 @@ def discretize(df, col, bins=2, cutoffs=None):
 
 
 def save_combined_dose_response():
+    t1 = time.time()
     df1 = load_single_dose_response(combo_format=True, fraction=False)
     df2 = load_combo_dose_response(fraction=False)
     df = pd.concat([df1, df2])
     df.to_csv('combined_drug_growth', index=False, sep='\t')
+    seperator_print()
+    print(f"save_combined_dose_response : Time = {time.time() - t1} s")
+    seperator_print()
 
 
 def load_combined_dose_response(rename=True):
+    t1 = time.time()
     df1 = load_single_dose_response(combo_format=True)
     logger.info('Loaded {} single drug dose response measurements'.format(df1.shape[0]))
 
@@ -128,11 +136,15 @@ def load_combined_dose_response(rename=True):
                                 'DRUG1': 'Drug1', 'DRUG2': 'Drug2',
                                 'DOSE1': 'Dose1', 'DOSE2': 'Dose2',
                                 'GROWTH': 'Growth', 'STUDY': 'Study'})
+    seperator_print()
+    print(f"load_combined_dose_response : Time = {time.time() - t1} s")
+    seperator_print()
     return df
 
 
 def load_single_dose_response(combo_format=False, fraction=True):
     # path = get_file(DATA_URL + 'combined_single_drug_growth')
+    t1 = time.time()
     path = get_file(DATA_URL + 'rescaled_combined_single_drug_growth')
 
     df = global_cache.get(path)
@@ -161,11 +173,14 @@ def load_single_dose_response(combo_format=False, fraction=True):
         df['DRUG2'] = df['DRUG2'].astype(object)
         df['DOSE2'] = df['DOSE2'].astype(np.float32)
         df = df[['SOURCE', 'CELL', 'DRUG1', 'DOSE1', 'DRUG2', 'DOSE2', 'GROWTH', 'STUDY']]
-
+    seperator_print()
+    print(f"load_single_dose_response : Time = {time.time() - t1} s")
+    seperator_print()
     return df
 
 
 def load_combo_dose_response(fraction=True):
+    t1 = time.time()
     path = get_file(DATA_URL + 'ComboDrugGrowth_Nov2017.csv')
     df = global_cache.get(path)
     if df is None:
@@ -204,11 +219,14 @@ def load_combo_dose_response(fraction=True):
         df['GROWTH'] = df['PERCENTGROWTH']
 
     df = df[['SOURCE', 'CELL', 'DRUG1', 'DOSE1', 'DRUG2', 'DOSE2', 'GROWTH', 'STUDY']]
-
+    seperator_print()
+    print(f"load_combo_dose_response : Time = {time.time() - t1} s")
+    seperator_print()
     return df
 
 
 def load_aggregated_single_response(target='AUC', min_r2_fit=0.3, max_ec50_se=3, combo_format=False, rename=True):
+    t1 = time.time()
     path = get_file(DATA_URL + 'combined_single_response_agg')
 
     df = global_cache.get(path)
@@ -242,11 +260,14 @@ def load_aggregated_single_response(target='AUC', min_r2_fit=0.3, max_ec50_se=3,
         if rename:
             df = df.rename(columns={'SOURCE': 'Source', 'CELL': 'Sample',
                                     'DRUG': 'Drug', 'STUDY': 'Study'})
-
+    seperator_print()
+    print(f"load_aggregated_single_response : Time = {time.time() - t1} s")
+    seperator_print()
     return df
 
 
 def load_drug_data(ncols=None, scaling='std', imputing='mean', dropna=None, add_prefix=True):
+    t1 = time.time()
     df_info = load_drug_info()
     df_info['Drug'] = df_info['PUBCHEM']
 
@@ -277,11 +298,14 @@ def load_drug_data(ncols=None, scaling='std', imputing='mean', dropna=None, add_
 
     logger.info('Loaded combined dragon7 drug descriptors: %s', df_desc.shape)
     logger.info('Loaded combined dragon7 drug fingerprints: %s', df_fp.shape)
-
+    seperator_print()
+    print(f"load_drug_data : Time = {time.time() - t1} s")
+    seperator_print()
     return df_desc, df_fp
 
 
 def load_mordred_descriptors(ncols=None, scaling='std', imputing='mean', dropna=None, add_prefix=True, feature_subset=None):
+    t1 = time.time()
     path = get_file(DATA_URL + 'extended_combined_mordred_descriptors')
 
     df = pd.read_csv(path, engine='c', sep='\t', na_values=['na', '-', ''])
@@ -309,11 +333,14 @@ def load_mordred_descriptors(ncols=None, scaling='std', imputing='mean', dropna=
     df_desc = pd.concat([df1, df2], axis=1)
 
     logger.info('Loaded Mordred drug descriptors: %s', df_desc.shape)
-
+    seperator_print()
+    print(f"load_drug_data : Time = {time.time() - t1} s")
+    seperator_print()
     return df_desc
 
 
 def load_drug_descriptors(ncols=None, scaling='std', imputing='mean', dropna=None, add_prefix=True, feature_subset=None):
+    t1 = time.time()
     df_info = load_drug_info()
     df_info['Drug'] = df_info['PUBCHEM']
 
@@ -321,7 +348,7 @@ def load_drug_descriptors(ncols=None, scaling='std', imputing='mean', dropna=Non
     df_desc = pd.merge(df_info[['ID', 'Drug']], df_desc, on='Drug').drop('Drug', 1).rename(columns={'ID': 'Drug'})
 
     df_desc2 = load_drug_set_descriptors(drug_set='NCI60', usecols=df_desc.columns.tolist() if ncols else None)
-
+    tm1 = time.time()
     df_desc = pd.concat([df_desc, df_desc2]).reset_index(drop=True)
     df1 = pd.DataFrame(df_desc.loc[:, 'Drug'])
     df2 = df_desc.drop('Drug', 1)
@@ -331,13 +358,16 @@ def load_drug_descriptors(ncols=None, scaling='std', imputing='mean', dropna=Non
         df2 = df2[[x for x in df2.columns if x in feature_subset]]
     df2 = impute_and_scale(df2, scaling=scaling, imputing=imputing, dropna=dropna)
     df_desc = pd.concat([df1, df2], axis=1)
-
+    print(f"\t Other DF Ops [iloc, impute, concat, extraction] {time.time() - tm1} s")
     logger.info('Loaded combined dragon7 drug descriptors: %s', df_desc.shape)
-
+    seperator_print()
+    print(f"load_drug_descriptors : Time = {time.time() - t1} s")
+    seperator_print()
     return df_desc
 
 
 def load_drug_fingerprints(ncols=None, scaling='std', imputing='mean', dropna=None, add_prefix=True, feature_subset=None):
+    t1 = time.time()
     df_info = load_drug_info()
     df_info['Drug'] = df_info['PUBCHEM']
 
@@ -357,18 +387,25 @@ def load_drug_fingerprints(ncols=None, scaling='std', imputing='mean', dropna=No
     df_fp = pd.concat([df1, df2], axis=1)
 
     logger.info('Loaded combined dragon7 drug fingerprints: %s', df_fp.shape)
-
+    seperator_print()
+    print(f"load_drug_fingerprints : Time = {time.time() - t1} s")
+    seperator_print()
     return df_fp
 
 
 def load_drug_info():
+    t1 = time.time()
     path = get_file(DATA_URL + 'drug_info')
     df = pd.read_csv(path, sep='\t', dtype=object)
     df['PUBCHEM'] = 'PubChem.CID.' + df['PUBCHEM']
+    seperator_print()
+    print(f"load_drug_info : Time = {time.time() - t1} s")
+    seperator_print()
     return df
 
 
 def lookup(df, query, ret, keys, match='match'):
+    t1 = time.time()
     mask = pd.Series(False, index=range(df.shape[0]))
     for key in keys:
         if match == 'contains':
@@ -376,15 +413,23 @@ def lookup(df, query, ret, keys, match='match'):
         else:
             mask |= (df[key].str.upper() == query.upper())
     return list(set(df[mask][ret].values.flatten().tolist()))
+    seperator_print()
+    print(f"lookup : Time = {time.time() - t1} s")
+    seperator_print()
 
 
 def load_cell_metadata():
+    t1 = time.time()
     path = get_file(DATA_URL + 'cl_metadata')
     df = pd.read_csv(path, sep='\t')
+    seperator_print()
+    print(f"load_drug_info : Time = {time.time() - t1} s")
+    seperator_print()
     return df
 
 
 def cell_name_to_ids(name, source=None):
+    t1 = time.time()
     path = get_file(DATA_URL + 'NCI60_CELLNAME_to_Combo.txt')
     df1 = pd.read_csv(path, sep='\t')
     hits1 = lookup(df1, name, 'NCI60.ID', ['NCI60.ID', 'CELLNAME', 'Name'], match='contains')
@@ -394,10 +439,14 @@ def cell_name_to_ids(name, source=None):
     hits = hits1 + hits2
     if source:
         hits = [x for x in hits if x.startswith(source.upper() + '.')]
+    seperator_print()
+    print(f"cell_name_to_ids : Time = {time.time() - t1} s")
+    seperator_print()
     return hits
 
 
 def drug_name_to_ids(name, source=None):
+    t1 = time.time()
     df1 = load_drug_info()
     path = get_file(DATA_URL + 'NCI_IOA_AOA_drugs')
     df2 = pd.read_csv(path, sep='\t', dtype=str)
@@ -407,15 +456,21 @@ def drug_name_to_ids(name, source=None):
     hits = hits1 + hits2
     if source:
         hits = [x for x in hits if x.startswith(source.upper() + '.')]
+    seperator_print()
+    print(f"drug_name_to_ids : Time = {time.time() - t1} s")
+    seperator_print()
     return hits
 
 
 def load_drug_set_descriptors(drug_set='Combined_PubChem', ncols=None, usecols=None,
                               scaling=None, imputing=None, add_prefix=False):
+    t1 = time.time()
     path = get_file(DATA_URL + '{}_dragon7_descriptors.tsv'.format(drug_set))
-
+    tm1 = time.time()
     df_cols = pd.read_csv(path, engine='c', sep='\t', nrows=0)
+    print(f"\t CSV Read Time {time.time() - tm1} s")
     total = df_cols.shape[1] - 1
+    tm2 = time.time()
     if usecols is not None:
         usecols = [x for x in usecols if x in df_cols.columns]
         if usecols[0] != 'NAME':
@@ -425,11 +480,17 @@ def load_drug_set_descriptors(drug_set='Combined_PubChem', ncols=None, usecols=N
         usecols = np.random.choice(total, size=ncols, replace=False)
         usecols = np.append([0], np.add(sorted(usecols), 1))
         df_cols = df_cols.iloc[:, usecols]
+    print(f"\t DF Iloc Time {time.time() - tm2} s")
 
+    tm3 = time.time()
     dtype_dict = dict((x, np.float32) for x in df_cols.columns[1:])
+    print(f"\t Dict Conv Time Time {time.time() - tm3} s")
+    tm4 = time.time()
     df = pd.read_csv(path, engine='c', sep='\t', usecols=usecols, dtype=dtype_dict,
                      na_values=['na', '-', ''])
+    print(f"\t CSV Read with DType Cols Time {time.time() - tm4} s")
 
+    tm5 = time.time()
     df1 = pd.DataFrame(df.loc[:, 'NAME'])
     df1.rename(columns={'NAME': 'Drug'}, inplace=True)
 
@@ -440,11 +501,16 @@ def load_drug_set_descriptors(drug_set='Combined_PubChem', ncols=None, usecols=N
     df2 = impute_and_scale(df2, scaling, imputing, dropna=None)
 
     df = pd.concat([df1, df2], axis=1)
+    print(f"\t Other DF Ops {time.time() - tm5} s")
+    seperator_print()
+    print(f"load_drug_set_descriptors : Time = {time.time() - t1} s")
+    seperator_print()
     return df
 
 
 def load_drug_set_fingerprints(drug_set='Combined_PubChem', ncols=None, usecols=None,
                                scaling=None, imputing=None, add_prefix=False):
+    t1 = time.time()
     fps = ['PFP', 'ECFP']
     usecols_all = usecols
     df_merged = None
@@ -482,7 +548,9 @@ def load_drug_set_fingerprints(drug_set='Combined_PubChem', ncols=None, usecols=
         df = pd.concat([df1, df2], axis=1)
 
         df_merged = df if df_merged is None else df_merged.merge(df)
-
+    seperator_print()
+    print(f"load_drug_set_fingerprints : Time = {time.time() - t1} s")
+    seperator_print()
     return df_merged
 
 
@@ -498,12 +566,16 @@ def load_drug_set_fingerprints(drug_set='Combined_PubChem', ncols=None, usecols=
 #     return df
 
 def encode_sources(sources):
+    t1 = time.time()
     df = pd.get_dummies(sources, prefix='source', prefix_sep='.')
     df['Source'] = sources
     source_l1 = df['Source'].str.extract('^(\S+)\.', expand=False)
     df1 = pd.get_dummies(source_l1, prefix='source.L1', prefix_sep='.')
     df = pd.concat([df1, df], axis=1)
     df = df.set_index('Source').reset_index()
+    seperator_print()
+    print(f"encode_sources : Time = {time.time() - t1} s")
+    seperator_print()
     return df
 
 
@@ -511,7 +583,7 @@ def load_cell_rnaseq(ncols=None, scaling='std', imputing='mean', add_prefix=True
                      use_landmark_genes=False, use_filtered_genes=False,
                      feature_subset=None, preprocess_rnaseq=None,
                      embed_feature_source=False, sample_set=None, index_by_sample=False):
-
+    t1 = time.time()
     if use_landmark_genes:
         filename = 'combined_rnaseq_data_lincs1000'
     elif use_filtered_genes:
@@ -571,21 +643,28 @@ def load_cell_rnaseq(ncols=None, scaling='std', imputing='mean', add_prefix=True
         df = df.set_index('Sample')
 
     logger.info('Loaded combined RNAseq data: %s', df.shape)
-
+    seperator_print()
+    print(f"load_cell_rnaseq : Time = {time.time() - t1} s")
+    seperator_print()
     return df
 
 
 def read_set_from_file(path):
+    t1 = time.time()
     if path:
         with open(path, 'r') as f:
             text = f.read().strip()
             subset = text.split()
     else:
         subset = None
+    seperator_print()
+    print(f"read_set_from_file : Time = {time.time() - t1} s")
+    seperator_print()
     return subset
 
 
 def select_drugs_with_response_range(df_response, lower=0, upper=0, span=0, lower_median=None, upper_median=None):
+    t1 = time.time()
     df = df_response.groupby(['Drug1', 'Sample'])['Growth'].agg(['min', 'max', 'median'])
     df['span'] = df['max'].clip(lower=-1, upper=1) - df['min'].clip(lower=-1, upper=1)
     df = df.groupby('Drug1').mean().reset_index().rename(columns={'Drug1': 'Drug'})
@@ -595,19 +674,27 @@ def select_drugs_with_response_range(df_response, lower=0, upper=0, span=0, lowe
     if upper_median:
         mask &= (df['median'] <= upper_median)
     df_sub = df[mask]
+    seperator_print()
+    print(f"select_drugs_with_response_range : Time = {time.time() - t1} s")
+    seperator_print()
     return df_sub
 
 
 def summarize_response_data(df, target=None):
+    t1 = time.time()
     target = target or 'Growth'
     df_sum = df.groupby('Source').agg({target: 'count', 'Sample': 'nunique',
                                        'Drug1': 'nunique', 'Drug2': 'nunique'})
     if 'Dose1' in df_sum:
         df_sum['MedianDose'] = df.groupby('Source').agg({'Dose1': 'median'})
+    seperator_print()
+    print(f"summarize_response_data : Time = {time.time() - t1} s")
+    seperator_print()
     return df_sum
 
 
 def assign_partition_groups(df, partition_by='drug_pair'):
+    t1 = time.time()
     if partition_by == 'cell':
         group = df['Sample']
     elif partition_by == 'drug_pair':
@@ -622,10 +709,14 @@ def assign_partition_groups(df, partition_by='drug_pair'):
     elif partition_by == 'index':
         group = df.reset_index()['index']
     logger.info('Grouped response data by %s: %d groups', partition_by, group.nunique())
+    seperator_print()
+    print(f"assign_partition_groups : Time = {time.time() - t1} s")
+    seperator_print()
     return group
 
 
 def dict_compare(d1, d2, ignore=[], expand=False):
+    t1 = time.time()
     d1_keys = set(d1.keys()) - set(ignore)
     d2_keys = set(d2.keys()) - set(ignore)
     intersect_keys = d1_keys.intersection(d2_keys)
@@ -634,6 +725,9 @@ def dict_compare(d1, d2, ignore=[], expand=False):
     modified = set({x: (d1[x], d2[x]) for x in intersect_keys if d1[x] != d2[x]})
     common = set(x for x in intersect_keys if d1[x] == d2[x])
     equal = not (added or removed or modified)
+    seperator_print()
+    print(f"dict_compare : Time = {time.time() - t1} s")
+    seperator_print()
     if expand:
         return equal, added, removed, modified, common
     else:
@@ -641,11 +735,15 @@ def dict_compare(d1, d2, ignore=[], expand=False):
 
 
 def values_or_dataframe(df, contiguous=False, dataframe=False):
+    #t1 = time.time()
     if dataframe:
         return df
     mat = df.values
     if contiguous:
         mat = np.ascontiguousarray(mat)
+    # seperator_print()
+    # print(f"values_or_dataframe : Time = {time.time() - t1} s")
+    # seperator_print()
     return mat
 
 
@@ -882,11 +980,14 @@ class CombinedDataLoader(object):
 
         train_sep_sources = [x for x in all_sources for y in train_sources if x.startswith(y)]
         test_sep_sources = [x for x in all_sources for y in test_sources if x.startswith(y)]
-
+        tm1 = time.time()
         ids1 = df_response[['Drug1']].drop_duplicates().rename(columns={'Drug1': 'Drug'})
         ids2 = df_response[['Drug2']].drop_duplicates().rename(columns={'Drug2': 'Drug'})
+        print(f"\t DF Drop {time.time() - tm1} s")
+        tm2 = time.time()
         df_drugs_with_response = pd.concat([ids1, ids2]).drop_duplicates().dropna().reset_index(drop=True)
         df_cells_with_response = df_response[['Sample']].drop_duplicates().reset_index(drop=True)
+        print(f"\t DF Concat Drop Duplicates DropNa ResetIndex {time.time() - tm2} s")
         logger.info('Combined raw dose response data has %d unique samples and %d unique drugs', df_cells_with_response.shape[0], df_drugs_with_response.shape[0])
 
         if agg_dose:
@@ -896,13 +997,17 @@ class CombinedDataLoader(object):
             df_selected_drugs = select_drugs_with_response_range(df_response, span=drug_response_span, lower=drug_lower_response, upper=drug_upper_response, lower_median=drug_median_response_min, upper_median=drug_median_response_max)
             logger.info('Selected %d drugs from %d', df_selected_drugs.shape[0], df_response['Drug1'].nunique())
 
+        tm3 = time.time()
         cell_feature_subset = read_set_from_file(cell_feature_subset_path)
         drug_feature_subset = read_set_from_file(drug_feature_subset_path)
+        print(f"\t Read Set From File {time.time() - tm3} s")
 
+        tm4 = time.time()
         for fea in cell_features:
             fea = fea.lower()
             if fea == 'rnaseq' or fea == 'expression':
                 df_cell_rnaseq = load_cell_rnaseq(ncols=ncols, scaling=scaling, use_landmark_genes=use_landmark_genes, use_filtered_genes=use_filtered_genes, feature_subset=cell_feature_subset, preprocess_rnaseq=preprocess_rnaseq, embed_feature_source=embed_feature_source)
+        print(f"\t Load Cell rnaseq {time.time() - tm4} s")
 
         for fea in drug_features:
             fea = fea.lower()
@@ -927,26 +1032,33 @@ class CombinedDataLoader(object):
 
         logger.info('Filtering drug response data...')
 
+        tm5 = time.time()
         df_cell_ids = df_cells_with_response
         for fea in cell_features:
             df_cell = locals()[cell_df_dict[fea]]
             df_cell_ids = df_cell_ids.merge(df_cell[['Sample']]).drop_duplicates()
+        print(f"\t Merge DF 1 cellids {time.time() - tm5} s")
         logger.info('  %d molecular samples with feature and response data', df_cell_ids.shape[0])
 
         df_drug_ids = df_drugs_with_response
+        tm6 = time.time()
         for fea in drug_features:
             df_drug = locals()[drug_df_dict[fea]]
             df_drug_ids = df_drug_ids.merge(df_drug[['Drug']]).drop_duplicates()
+        print(f"\t Merge DF 2 drug_ids {time.time() - tm6} s")
 
+        tm7 = time.time()
         if df_selected_drugs is not None:
             df_drug_ids = df_drug_ids.merge(df_selected_drugs).drop_duplicates()
+        print(f"\t Merge DF 3 merge {time.time() - tm7} s")
         logger.info('  %d selected drugs with feature and response data', df_drug_ids.shape[0])
 
+        tm8 = time.time()
         df_response = df_response[df_response['Sample'].isin(df_cell_ids['Sample']) &
                                   df_response['Drug1'].isin(df_drug_ids['Drug']) &
                                   (df_response['Drug2'].isin(df_drug_ids['Drug']) | df_response['Drug2'].isnull())]
-
         df_response = df_response[df_response['Source'].isin(train_sep_sources + test_sep_sources)]
+        print(f"\t DF isin/isnull {time.time() - tm8} s")
 
         df_response.reset_index(drop=True, inplace=True)
 
@@ -954,7 +1066,9 @@ class CombinedDataLoader(object):
             logger.info('Summary of filtered dose response by source:')
             logger.info(summarize_response_data(df_response, target=agg_dose))
 
+        tm9 = time.time()
         df_response = df_response.assign(Group=assign_partition_groups(df_response, partition_by))
+        print(f"\t DF assign {time.time() - tm9} s")
 
         self.agg_dose = agg_dose
         self.cell_features = cell_features
