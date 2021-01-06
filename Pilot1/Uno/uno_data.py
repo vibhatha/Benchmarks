@@ -749,9 +749,15 @@ def values_or_dataframe(df, contiguous=False, dataframe=False):
 
 class CombinedDataLoader(object):
     def __init__(self, seed=SEED):
+        seperator_print()
+        print("CombineDataLoader")
+        seperator_print()
         self.seed = seed
 
     def load_from_cache(self, cache, params):
+        seperator_print()
+        print("CombineDataLoader.load_from_cache")
+        seperator_print()
         """ NOTE: How does this function return an error? (False?) -Wozniak """
         param_fname = '{}.params.json'.format(cache)
         if not os.path.isfile(param_fname):
@@ -783,6 +789,9 @@ class CombinedDataLoader(object):
         return False
 
     def save_to_cache(self, cache, params):
+        seperator_print()
+        print("CombineDataLoader.save_to_cache")
+        seperator_print()
         for k in ['self', 'cache', 'single']:
             if k in params:
                 del params[k]
@@ -801,7 +810,9 @@ class CombinedDataLoader(object):
     def partition_data(self, partition_by=None, cv_folds=1, train_split=0.7, val_split=0.2,
                        cell_types=None, by_cell=None, by_drug=None,
                        cell_subset_path=None, drug_subset_path=None):
-
+        seperator_print()
+        print("CombineDataLoader.partition_data")
+        seperator_print()
         seed = self.seed
         train_sep_sources = self.train_sep_sources
         test_sep_sources = self.test_sep_sources
@@ -889,6 +900,9 @@ class CombinedDataLoader(object):
         self.test_indexes = test_indexes
 
     def build_feature_list(self, single=False):
+        seperator_print()
+        print("CombineDataLoader.build_feature_list")
+        seperator_print()
         input_features = collections.OrderedDict()
         feature_shapes = collections.OrderedDict()
 
@@ -943,6 +957,9 @@ class CombinedDataLoader(object):
              # test_sources=['CCLE', 'gCSI'],
              test_sources=['train'],
              partition_by='drug_pair'):
+        seperator_print()
+        print("CombineDataLoader.load")
+        seperator_print()
 
         params = locals().copy()
         del params['self']
@@ -1101,6 +1118,9 @@ class DataFeeder(keras.utils.Sequence):
     """Read from pre-joined dataset (HDF5 format) and feed data to the model.
     """
     def __init__(self, partition='train', filename=None, batch_size=32, shuffle=False, single=False, agg_dose=None):
+        seperator_print()
+        print("DataFeeder")
+        seperator_print()
         self.partition = partition
         self.filename = filename
         self.batch_size = batch_size
@@ -1139,6 +1159,9 @@ class DataFeeder(keras.utils.Sequence):
         pass
 
     def get_response(self, copy=False):
+        seperator_print()
+        print("DataFeeder.get_response")
+        seperator_print()
         if self.shuffle:
             self.index = [item for step in range(self.steps) for item in range(self.index_map[step] * self.batch_size, (self.index_map[step] + 1) * self.batch_size)]
             df = self.store.get('y_{}'.format(self.partition)).iloc[self.index,:]
@@ -1159,6 +1182,9 @@ class CombinedDataGenerator(keras.utils.Sequence):
     """Generate training, validation or testing batches from loaded data
     """
     def __init__(self, data, partition='train', fold=0, source=None, batch_size=32, shuffle=True, single=False, rank=0, total_ranks=1):
+        seperator_print()
+        print("CombinedDataGenerator")
+        seperator_print()
         self.data = data
         self.partition = partition
         self.batch_size = batch_size
@@ -1197,13 +1223,22 @@ class CombinedDataGenerator(keras.utils.Sequence):
         return x_list, y
 
     def reset(self):
+        seperator_print()
+        print("CombinedDataGenerator.reset")
+        seperator_print()
         self.index_cycle = cycle(self.index)
 
     def get_response(self, copy=False):
+        seperator_print()
+        print("CombinedDataGenerator.get_response")
+        seperator_print()
         df = self.data.df_response.iloc[self.index, :].drop(['Group'], axis=1)
         return df.copy() if copy else df
 
     def get_slice(self, size=None, contiguous=True, single=False, dataframe=False, partial_index=None):
+        # seperator_print()
+        # print("CombinedDataGenerator.get_slice")
+        # seperator_print()
         size = size or self.size
         single = single or self.data.agg_dose
         target = self.data.agg_dose or 'Growth'
@@ -1274,6 +1309,9 @@ class CombinedDataGenerator(keras.utils.Sequence):
         return x_list, y
 
     def flow(self, single=False):
+        seperator_print()
+        print("CombinedDataGenerator.flow")
+        seperator_print()
         while 1:
             x_list, y = self.get_slice(self.batch_size, single=single)
             yield x_list, y
