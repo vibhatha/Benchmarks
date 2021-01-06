@@ -27,6 +27,15 @@ sys.path.append(lib_path)
 # import candle
 import file_utils
 
+# cylon imports
+
+from pycylon import CylonContext
+from pycylon import Table
+from pycylon.io import CSVReadOptions
+from pycylon.io import read_csv
+
+import math
+
 global_cache = {}
 
 SEED = 2018
@@ -35,6 +44,7 @@ P1B3_URL = 'http://ftp.mcs.anl.gov/pub/candle/public/benchmarks/P1B3/'
 DATA_URL = 'http://ftp.mcs.anl.gov/pub/candle/public/benchmarks/Pilot1/combo/'
 
 logger = logging.getLogger(__name__)
+ctx: CylonContext = CylonContext(config=None, distributed=False)
 
 
 def set_up_logger(verbose=False):
@@ -95,8 +105,10 @@ def impute_and_scale(df, scaling='std', imputing='mean', dropna='all'):
 
     return df
 
+
 def seperator_print():
     print("====================================================")
+
 
 def discretize(df, col, bins=2, cutoffs=None):
     y = df[col]
@@ -225,7 +237,8 @@ def load_combo_dose_response(fraction=True):
     return df
 
 
-def load_aggregated_single_response(target='AUC', min_r2_fit=0.3, max_ec50_se=3, combo_format=False, rename=True):
+def load_aggregated_single_response(target='AUC', min_r2_fit=0.3, max_ec50_se=3, combo_format=False,
+                                    rename=True):
     t1 = time.time()
     path = get_file(DATA_URL + 'combined_single_response_agg')
 
@@ -246,7 +259,9 @@ def load_aggregated_single_response(target='AUC', min_r2_fit=0.3, max_ec50_se=3,
     df = df[['SOURCE', 'CELL', 'DRUG', target, 'STUDY']]
     df = df[~df[target].isnull()]
 
-    logger.info('Loaded %d dose indepdendent response samples (filtered by EC50se <= %f & R2fit >=%f from a total of %d).', len(df), max_ec50_se, min_r2_fit, total)
+    logger.info(
+        'Loaded %d dose indepdendent response samples (filtered by EC50se <= %f & R2fit >=%f from a total of %d).',
+        len(df), max_ec50_se, min_r2_fit, total)
 
     if combo_format:
         df = df.rename(columns={'DRUG': 'DRUG1'})
@@ -263,7 +278,51 @@ def load_aggregated_single_response(target='AUC', min_r2_fit=0.3, max_ec50_se=3,
     seperator_print()
     print(f"load_aggregated_single_response : Time = {time.time() - t1} s")
     seperator_print()
+    print(df)
     return df
+
+
+def load_aggregated_single_response_cylon(target='AUC', min_r2_fit=0.3, max_ec50_se=3.0,
+                                          combo_format=False,
+                                          rename=True):
+    path = get_file(DATA_URL + 'combined_single_response_agg')
+
+    if os.path.exists(path):
+        print(f"Data file : {path}")
+        csv_read_options = CSVReadOptions().use_threads(True).block_size(1 << 30).with_delimiter(
+            "\t")
+        t1 = time.time()
+        tb: Table = read_csv(ctx, path, csv_read_options)
+        t2 = time.time()
+        tb = tb[(tb['R2fit'] >= min_r2_fit) & (tb['EC50se'] <= max_ec50_se)]
+        t3 = time.time()
+        table_read_time = t2 - t1
+        filter_time = t3 - t2
+        tb = tb[['SOURCE', 'CELL', 'DRUG', target, 'STUDY']]
+        tb = tb[~tb[target].isnull()]
+        print("Cylon ", tb.row_count, tb.column_count, tb.column_names)
+
+        print("Cylon Data Loading Time: ", table_read_time)
+        print("Cylon Data Filter Time: ", filter_time)
+        if combo_format:
+            tb.rename({'DRUG': 'DRUG1'})
+            pdf = pd.DataFrame([np.nan] * tb.shape[0])
+            #pdf = pdf.astype(object)
+            tb['DRUG2'] = Table.from_pandas(ctx, pdf)
+            # tb['DRUG2'] = tb['DRUG2'].astype(object)
+            tb = tb[['SOURCE', 'CELL', 'DRUG1', 'DRUG2', target, 'STUDY']]
+            if rename:
+                tb.rename({'SOURCE': 'Source', 'CELL': 'Sample',
+                           'DRUG1': 'Drug1', 'DRUG2': 'Drug2', 'STUDY': 'Study'})
+        else:
+            if rename:
+                tb.rename({'SOURCE': 'Source', 'CELL': 'Sample',
+                           'DRUG': 'Drug', 'STUDY': 'Study'})
+        # TODO: remove this and replace once the flow is entirely Cylon
+        df = tb.to_pandas()
+        if combo_format:
+            df['Drug2'] = df['Drug2'].astype(object)
+        return df
 
 
 def load_drug_data(ncols=None, scaling='std', imputing='mean', dropna=None, add_prefix=True):
@@ -274,11 +333,15 @@ def load_drug_data(ncols=None, scaling='std', imputing='mean', dropna=None, add_
     df_desc = load_drug_set_descriptors(drug_set='Combined_PubChem', ncols=ncols)
     df_fp = load_drug_set_fingerprints(drug_set='Combined_PubChem', ncols=ncols)
 
-    df_desc = pd.merge(df_info[['ID', 'Drug']], df_desc, on='Drug').drop('Drug', 1).rename(columns={'ID': 'Drug'})
-    df_fp = pd.merge(df_info[['ID', 'Drug']], df_fp, on='Drug').drop('Drug', 1).rename(columns={'ID': 'Drug'})
+    df_desc = pd.merge(df_info[['ID', 'Drug']], df_desc, on='Drug').drop('Drug', 1).rename(
+        columns={'ID': 'Drug'})
+    df_fp = pd.merge(df_info[['ID', 'Drug']], df_fp, on='Drug').drop('Drug', 1).rename(
+        columns={'ID': 'Drug'})
 
-    df_desc2 = load_drug_set_descriptors(drug_set='NCI60', usecols=df_desc.columns.tolist() if ncols else None)
-    df_fp2 = load_drug_set_fingerprints(drug_set='NCI60', usecols=df_fp.columns.tolist() if ncols else None)
+    df_desc2 = load_drug_set_descriptors(drug_set='NCI60',
+                                         usecols=df_desc.columns.tolist() if ncols else None)
+    df_fp2 = load_drug_set_fingerprints(drug_set='NCI60',
+                                        usecols=df_fp.columns.tolist() if ncols else None)
 
     df_desc = pd.concat([df_desc, df_desc2]).reset_index(drop=True)
     df1 = pd.DataFrame(df_desc.loc[:, 'Drug'])
@@ -304,7 +367,8 @@ def load_drug_data(ncols=None, scaling='std', imputing='mean', dropna=None, add_
     return df_desc, df_fp
 
 
-def load_mordred_descriptors(ncols=None, scaling='std', imputing='mean', dropna=None, add_prefix=True, feature_subset=None):
+def load_mordred_descriptors(ncols=None, scaling='std', imputing='mean', dropna=None,
+                             add_prefix=True, feature_subset=None):
     t1 = time.time()
     path = get_file(DATA_URL + 'extended_combined_mordred_descriptors')
 
@@ -339,15 +403,18 @@ def load_mordred_descriptors(ncols=None, scaling='std', imputing='mean', dropna=
     return df_desc
 
 
-def load_drug_descriptors(ncols=None, scaling='std', imputing='mean', dropna=None, add_prefix=True, feature_subset=None):
+def load_drug_descriptors(ncols=None, scaling='std', imputing='mean', dropna=None, add_prefix=True,
+                          feature_subset=None):
     t1 = time.time()
     df_info = load_drug_info()
     df_info['Drug'] = df_info['PUBCHEM']
 
     df_desc = load_drug_set_descriptors(drug_set='Combined_PubChem', ncols=ncols)
-    df_desc = pd.merge(df_info[['ID', 'Drug']], df_desc, on='Drug').drop('Drug', 1).rename(columns={'ID': 'Drug'})
+    df_desc = pd.merge(df_info[['ID', 'Drug']], df_desc, on='Drug').drop('Drug', 1).rename(
+        columns={'ID': 'Drug'})
 
-    df_desc2 = load_drug_set_descriptors(drug_set='NCI60', usecols=df_desc.columns.tolist() if ncols else None)
+    df_desc2 = load_drug_set_descriptors(drug_set='NCI60',
+                                         usecols=df_desc.columns.tolist() if ncols else None)
     tm1 = time.time()
     df_desc = pd.concat([df_desc, df_desc2]).reset_index(drop=True)
     df1 = pd.DataFrame(df_desc.loc[:, 'Drug'])
@@ -366,15 +433,18 @@ def load_drug_descriptors(ncols=None, scaling='std', imputing='mean', dropna=Non
     return df_desc
 
 
-def load_drug_fingerprints(ncols=None, scaling='std', imputing='mean', dropna=None, add_prefix=True, feature_subset=None):
+def load_drug_fingerprints(ncols=None, scaling='std', imputing='mean', dropna=None, add_prefix=True,
+                           feature_subset=None):
     t1 = time.time()
     df_info = load_drug_info()
     df_info['Drug'] = df_info['PUBCHEM']
 
     df_fp = load_drug_set_fingerprints(drug_set='Combined_PubChem', ncols=ncols)
-    df_fp = pd.merge(df_info[['ID', 'Drug']], df_fp, on='Drug').drop('Drug', 1).rename(columns={'ID': 'Drug'})
+    df_fp = pd.merge(df_info[['ID', 'Drug']], df_fp, on='Drug').drop('Drug', 1).rename(
+        columns={'ID': 'Drug'})
 
-    df_fp2 = load_drug_set_fingerprints(drug_set='NCI60', usecols=df_fp.columns.tolist() if ncols else None)
+    df_fp2 = load_drug_set_fingerprints(drug_set='NCI60',
+                                        usecols=df_fp.columns.tolist() if ncols else None)
 
     df_fp = pd.concat([df_fp, df_fp2]).reset_index(drop=True)
     df1 = pd.DataFrame(df_fp.loc[:, 'Drug'])
@@ -607,7 +677,8 @@ def load_cell_rnaseq(ncols=None, scaling='std', imputing='mean', add_prefix=True
         df_cols = df_cols.iloc[:, usecols]
     if feature_subset:
         with_prefix = lambda x: 'rnaseq.' + x if add_prefix else x
-        usecols = [0] + [i for i, c in enumerate(df_cols.columns) if with_prefix(c) in feature_subset]
+        usecols = [0] + [i for i, c in enumerate(df_cols.columns) if
+                         with_prefix(c) in feature_subset]
         df_cols = df_cols.iloc[:, usecols]
 
     dtype_dict = dict((x, np.float32) for x in df_cols.columns[1:])
@@ -624,7 +695,8 @@ def load_cell_rnaseq(ncols=None, scaling='std', imputing='mean', add_prefix=True
     if embed_feature_source:
         df_sample_source = pd.concat([df1, prefixes], axis=1)
         df1 = df_sample_source.merge(df_source, on='Source', how='left').drop('Source', axis=1)
-        logger.info('Embedding RNAseq data source into features: %d additional columns', df1.shape[1] - 1)
+        logger.info('Embedding RNAseq data source into features: %d additional columns',
+                    df1.shape[1] - 1)
 
     df2 = df.drop('Sample', 1)
     if add_prefix:
@@ -663,7 +735,8 @@ def read_set_from_file(path):
     return subset
 
 
-def select_drugs_with_response_range(df_response, lower=0, upper=0, span=0, lower_median=None, upper_median=None):
+def select_drugs_with_response_range(df_response, lower=0, upper=0, span=0, lower_median=None,
+                                     upper_median=None):
     t1 = time.time()
     df = df_response.groupby(['Drug1', 'Sample'])['Growth'].agg(['min', 'max', 'median'])
     df['span'] = df['max'].clip(lower=-1, upper=1) - df['min'].clip(lower=-1, upper=1)
@@ -701,8 +774,10 @@ def assign_partition_groups(df, partition_by='drug_pair'):
         df_info = load_drug_info()
         id_dict = df_info[['ID', 'PUBCHEM']].drop_duplicates(['ID']).set_index('ID').iloc[:, 0]
         group = df['Drug1'].copy()
-        group[(df['Drug2'].notnull()) & (df['Drug1'] <= df['Drug2'])] = df['Drug1'] + ',' + df['Drug2']
-        group[(df['Drug2'].notnull()) & (df['Drug1'] > df['Drug2'])] = df['Drug2'] + ',' + df['Drug1']
+        group[(df['Drug2'].notnull()) & (df['Drug1'] <= df['Drug2'])] = df['Drug1'] + ',' + df[
+            'Drug2']
+        group[(df['Drug2'].notnull()) & (df['Drug1'] > df['Drug2'])] = df['Drug2'] + ',' + df[
+            'Drug1']
         group2 = group.map(id_dict)
         mapped = group2.notnull()
         group[mapped] = group2[mapped]
@@ -735,7 +810,7 @@ def dict_compare(d1, d2, ignore=[], expand=False):
 
 
 def values_or_dataframe(df, contiguous=False, dataframe=False):
-    #t1 = time.time()
+    # t1 = time.time()
     if dataframe:
         return df
     mat = df.values
@@ -772,7 +847,8 @@ class CombinedDataLoader(object):
         ignore_keys = ['cache', 'partition_by', 'single']
         equal, diffs = dict_compare(params, cached_params, ignore_keys)
         if not equal:
-            logger.warning('Cache parameter mismatch: %s\nSaved: %s\nAttempted to load: %s', diffs, cached_params, params)
+            logger.warning('Cache parameter mismatch: %s\nSaved: %s\nAttempted to load: %s', diffs,
+                           cached_params, params)
             logger.warning('\nRemove %s to rebuild data cache.\n', param_fname)
             raise ValueError('Could not load from a cache with incompatible keys:', diffs)
         else:
@@ -827,7 +903,8 @@ class CombinedDataLoader(object):
                 partition_by = 'drug_pair'
 
         if partition_by != self.partition_by:
-            df_response = df_response.assign(Group=assign_partition_groups(df_response, partition_by))
+            df_response = df_response.assign(
+                Group=assign_partition_groups(df_response, partition_by))
 
         mask = df_response['Source'].isin(train_sep_sources)
         test_mask = df_response['Source'].isin(test_sep_sources)
@@ -851,16 +928,21 @@ class CombinedDataLoader(object):
 
         if drug_subset_path:
             drug_subset = read_set_from_file(drug_subset_path)
-            mask &= (df_response['Drug1'].isin(drug_subset)) & ((df_response['Drug2'].isnull()) | (df_response['Drug2'].isin(drug_subset)))
-            test_mask &= (df_response['Drug1'].isin(drug_subset)) & ((df_response['Drug2'].isnull()) | (df_response['Drug2'].isin(drug_subset)))
+            mask &= (df_response['Drug1'].isin(drug_subset)) & (
+                    (df_response['Drug2'].isnull()) | (df_response['Drug2'].isin(drug_subset)))
+            test_mask &= (df_response['Drug1'].isin(drug_subset)) & (
+                    (df_response['Drug2'].isnull()) | (df_response['Drug2'].isin(drug_subset)))
 
         if cell_types:
             df_type = load_cell_metadata()
             cell_ids = set()
             for cell_type in cell_types:
-                cells = df_type[~df_type['TUMOR_TYPE'].isnull() & df_type['TUMOR_TYPE'].str.contains(cell_type, case=False)]
+                cells = df_type[
+                    ~df_type['TUMOR_TYPE'].isnull() & df_type['TUMOR_TYPE'].str.contains(cell_type,
+                                                                                         case=False)]
                 cell_ids |= set(cells['ANL_ID'].tolist())
-                logger.info('Mapped sample tissue types for %s: %s', cell_type, set(cells['TUMOR_TYPE'].tolist()))
+                logger.info('Mapped sample tissue types for %s: %s', cell_type,
+                            set(cells['TUMOR_TYPE'].tolist()))
             mask &= (df_response['Sample'].isin(cell_ids))
             test_mask &= (df_response['Sample'].isin(cell_ids))
 
@@ -869,7 +951,8 @@ class CombinedDataLoader(object):
         if cv_folds > 1:
             selector = KFold(n_splits=cv_folds, shuffle=True, random_state=seed)
         else:
-            selector = ShuffleSplit(n_splits=1, train_size=train_split, test_size=val_split, random_state=seed)
+            selector = ShuffleSplit(n_splits=1, train_size=train_split, test_size=val_split,
+                                    random_state=seed)
 
         splits = selector.split(df_group)
 
@@ -882,16 +965,25 @@ class CombinedDataLoader(object):
             val_groups = set(df_group.values[val_group_index])
             train_index = df_response.index[df_response['Group'].isin(train_groups) & mask]
             val_index = df_response.index[df_response['Group'].isin(val_groups) & mask]
-            test_index = df_response.index[~df_response['Group'].isin(train_groups) & ~df_response['Group'].isin(val_groups) & test_mask]
+            test_index = df_response.index[
+                ~df_response['Group'].isin(train_groups) & ~df_response['Group'].isin(
+                    val_groups) & test_mask]
 
             train_indexes.append(train_index)
             val_indexes.append(val_index)
             test_indexes.append(test_index)
             if logger.isEnabledFor(logging.DEBUG):
-                logger.debug('CV fold %d: train data = %s, val data = %s, test data = %s', index, train_index.shape[0], val_index.shape[0], test_index.shape[0])
-                logger.debug('  train groups (%d): %s', df_response.loc[train_index]['Group'].nunique(), df_response.loc[train_index]['Group'].unique())
-                logger.debug('  val groups ({%d}): %s', df_response.loc[val_index]['Group'].nunique(), df_response.loc[val_index]['Group'].unique())
-                logger.debug('  test groups ({%d}): %s', df_response.loc[test_index]['Group'].nunique(), df_response.loc[test_index]['Group'].unique())
+                logger.debug('CV fold %d: train data = %s, val data = %s, test data = %s', index,
+                             train_index.shape[0], val_index.shape[0], test_index.shape[0])
+                logger.debug('  train groups (%d): %s',
+                             df_response.loc[train_index]['Group'].nunique(),
+                             df_response.loc[train_index]['Group'].unique())
+                logger.debug('  val groups ({%d}): %s',
+                             df_response.loc[val_index]['Group'].nunique(),
+                             df_response.loc[val_index]['Group'].unique())
+                logger.debug('  test groups ({%d}): %s',
+                             df_response.loc[test_index]['Group'].nunique(),
+                             df_response.loc[test_index]['Group'].unique())
 
         self.partition_by = partition_by
         self.cv_folds = cv_folds
@@ -977,7 +1069,7 @@ class CombinedDataLoader(object):
         logger.info('Loading data from scratch ...')
 
         if agg_dose:
-            df_response = load_aggregated_single_response(target=agg_dose, combo_format=True)
+            df_response = load_aggregated_single_response_cylon(target=agg_dose, combo_format=True)
         else:
             df_response = load_combined_dose_response()
 
@@ -1002,17 +1094,28 @@ class CombinedDataLoader(object):
         ids2 = df_response[['Drug2']].drop_duplicates().rename(columns={'Drug2': 'Drug'})
         print(f"\t DF Drop {time.time() - tm1} s")
         tm2 = time.time()
-        df_drugs_with_response = pd.concat([ids1, ids2]).drop_duplicates().dropna().reset_index(drop=True)
+        df_drugs_with_response = pd.concat([ids1, ids2]).drop_duplicates().dropna().reset_index(
+            drop=True)
         df_cells_with_response = df_response[['Sample']].drop_duplicates().reset_index(drop=True)
         print(f"\t DF Concat Drop Duplicates DropNa ResetIndex {time.time() - tm2} s")
-        logger.info('Combined raw dose response data has %d unique samples and %d unique drugs', df_cells_with_response.shape[0], df_drugs_with_response.shape[0])
+        logger.info('Combined raw dose response data has %d unique samples and %d unique drugs',
+                    df_cells_with_response.shape[0], df_drugs_with_response.shape[0])
 
         if agg_dose:
             df_selected_drugs = None
         else:
-            logger.info('Limiting drugs to those with response min <= %g, max >= %g, span >= %g, median_min <= %g, median_max >= %g ...', drug_lower_response, drug_upper_response, drug_response_span, drug_median_response_min, drug_median_response_max)
-            df_selected_drugs = select_drugs_with_response_range(df_response, span=drug_response_span, lower=drug_lower_response, upper=drug_upper_response, lower_median=drug_median_response_min, upper_median=drug_median_response_max)
-            logger.info('Selected %d drugs from %d', df_selected_drugs.shape[0], df_response['Drug1'].nunique())
+            logger.info(
+                'Limiting drugs to those with response min <= %g, max >= %g, span >= %g, median_min <= %g, median_max >= %g ...',
+                drug_lower_response, drug_upper_response, drug_response_span,
+                drug_median_response_min, drug_median_response_max)
+            df_selected_drugs = select_drugs_with_response_range(df_response,
+                                                                 span=drug_response_span,
+                                                                 lower=drug_lower_response,
+                                                                 upper=drug_upper_response,
+                                                                 lower_median=drug_median_response_min,
+                                                                 upper_median=drug_median_response_max)
+            logger.info('Selected %d drugs from %d', df_selected_drugs.shape[0],
+                        df_response['Drug1'].nunique())
 
         tm3 = time.time()
         cell_feature_subset = read_set_from_file(cell_feature_subset_path)
@@ -1023,18 +1126,26 @@ class CombinedDataLoader(object):
         for fea in cell_features:
             fea = fea.lower()
             if fea == 'rnaseq' or fea == 'expression':
-                df_cell_rnaseq = load_cell_rnaseq(ncols=ncols, scaling=scaling, use_landmark_genes=use_landmark_genes, use_filtered_genes=use_filtered_genes, feature_subset=cell_feature_subset, preprocess_rnaseq=preprocess_rnaseq, embed_feature_source=embed_feature_source)
+                df_cell_rnaseq = load_cell_rnaseq(ncols=ncols, scaling=scaling,
+                                                  use_landmark_genes=use_landmark_genes,
+                                                  use_filtered_genes=use_filtered_genes,
+                                                  feature_subset=cell_feature_subset,
+                                                  preprocess_rnaseq=preprocess_rnaseq,
+                                                  embed_feature_source=embed_feature_source)
         print(f"\t Load Cell rnaseq {time.time() - tm4} s")
 
         for fea in drug_features:
             fea = fea.lower()
             if fea == 'descriptors':
-                df_drug_desc = load_drug_descriptors(ncols=ncols, scaling=scaling, dropna=dropna, feature_subset=drug_feature_subset)
+                df_drug_desc = load_drug_descriptors(ncols=ncols, scaling=scaling, dropna=dropna,
+                                                     feature_subset=drug_feature_subset)
             elif fea == 'fingerprints':
-                df_drug_fp = load_drug_fingerprints(ncols=ncols, scaling=scaling, dropna=dropna, feature_subset=drug_feature_subset)
-            elif fea == 'mordred' :
-                df_drug_mordred = load_mordred_descriptors(ncols=ncols, scaling=scaling, dropna=dropna, feature_subset=drug_feature_subset)
-
+                df_drug_fp = load_drug_fingerprints(ncols=ncols, scaling=scaling, dropna=dropna,
+                                                    feature_subset=drug_feature_subset)
+            elif fea == 'mordred':
+                df_drug_mordred = load_mordred_descriptors(ncols=ncols, scaling=scaling,
+                                                           dropna=dropna,
+                                                           feature_subset=drug_feature_subset)
 
         # df_drug_desc, df_drug_fp = load_drug_data(ncols=ncols, scaling=scaling, dropna=dropna)
 
@@ -1042,7 +1153,7 @@ class CombinedDataLoader(object):
 
         drug_df_dict = {'descriptors': 'df_drug_desc',
                         'fingerprints': 'df_drug_fp',
-                        'mordred' : 'df_drug_mordred'}
+                        'mordred': 'df_drug_mordred'}
 
         # df_cell_ids = df_cell_rnaseq[['Sample']].drop_duplicates()
         # df_drug_ids = pd.concat([df_drug_desc[['Drug']], df_drug_fp[['Drug']]]).drop_duplicates()
@@ -1073,7 +1184,8 @@ class CombinedDataLoader(object):
         tm8 = time.time()
         df_response = df_response[df_response['Sample'].isin(df_cell_ids['Sample']) &
                                   df_response['Drug1'].isin(df_drug_ids['Drug']) &
-                                  (df_response['Drug2'].isin(df_drug_ids['Drug']) | df_response['Drug2'].isnull())]
+                                  (df_response['Drug2'].isin(df_drug_ids['Drug']) | df_response[
+                                      'Drug2'].isnull())]
         df_response = df_response[df_response['Source'].isin(train_sep_sources + test_sep_sources)]
         print(f"\t DF isin/isnull {time.time() - tm8} s")
 
@@ -1117,7 +1229,9 @@ class CombinedDataLoader(object):
 class DataFeeder(keras.utils.Sequence):
     """Read from pre-joined dataset (HDF5 format) and feed data to the model.
     """
-    def __init__(self, partition='train', filename=None, batch_size=32, shuffle=False, single=False, agg_dose=None):
+
+    def __init__(self, partition='train', filename=None, batch_size=32, shuffle=False, single=False,
+                 agg_dose=None):
         seperator_print()
         print("DataFeeder")
         seperator_print()
@@ -1149,7 +1263,8 @@ class DataFeeder(keras.utils.Sequence):
     def __getitem__(self, idx):
         start = self.index_map[idx] * self.batch_size
         stop = (self.index_map[idx] + 1) * self.batch_size
-        x = [self.store.select('x_{0}_{1}'.format(self.partition, i), start=start, stop=stop) for i in range(self.input_size)]
+        x = [self.store.select('x_{0}_{1}'.format(self.partition, i), start=start, stop=stop) for i
+             in range(self.input_size)]
         y = self.store.select('y_{}'.format(self.partition), start=start, stop=stop)[self.target]
         return x, y
 
@@ -1163,15 +1278,17 @@ class DataFeeder(keras.utils.Sequence):
         print("DataFeeder.get_response")
         seperator_print()
         if self.shuffle:
-            self.index = [item for step in range(self.steps) for item in range(self.index_map[step] * self.batch_size, (self.index_map[step] + 1) * self.batch_size)]
-            df = self.store.get('y_{}'.format(self.partition)).iloc[self.index,:]
+            self.index = [item for step in range(self.steps) for item in
+                          range(self.index_map[step] * self.batch_size,
+                                (self.index_map[step] + 1) * self.batch_size)]
+            df = self.store.get('y_{}'.format(self.partition)).iloc[self.index, :]
         else:
             df = self.store.get('y_{}'.format(self.partition))
 
         if self.agg_dose is None:
-            df['Dose1'] = self.store.get('x_{}_0'.format(self.partition)).iloc[self.index,:]
+            df['Dose1'] = self.store.get('x_{}_0'.format(self.partition)).iloc[self.index, :]
             if not self.single:
-                df['Dose2'] = self.store.get('x_{}_1'.format(self.partition)).iloc[self.index,:]
+                df['Dose2'] = self.store.get('x_{}_1'.format(self.partition)).iloc[self.index, :]
         return df.copy() if copy else df
 
     def close(self):
@@ -1181,7 +1298,9 @@ class DataFeeder(keras.utils.Sequence):
 class CombinedDataGenerator(keras.utils.Sequence):
     """Generate training, validation or testing batches from loaded data
     """
-    def __init__(self, data, partition='train', fold=0, source=None, batch_size=32, shuffle=True, single=False, rank=0, total_ranks=1):
+
+    def __init__(self, data, partition='train', fold=0, source=None, batch_size=32, shuffle=True,
+                 single=False, rank=0, total_ranks=1):
         seperator_print()
         print("CombinedDataGenerator")
         seperator_print()
@@ -1212,7 +1331,8 @@ class CombinedDataGenerator(keras.utils.Sequence):
         self.index_cycle = cycle(self.index)
         self.size = len(self.index)
         self.steps = self.size // self.batch_size
-        print("partition:{0}, rank:{1}, sharded index size:{2}, batch_size:{3}, steps:{4}".format(partition, rank, self.size, self.batch_size, self.steps))
+        print("partition:{0}, rank:{1}, sharded index size:{2}, batch_size:{3}, steps:{4}".format(
+            partition, rank, self.size, self.batch_size, self.steps))
 
     def __len__(self):
         return self.steps
@@ -1235,7 +1355,8 @@ class CombinedDataGenerator(keras.utils.Sequence):
         df = self.data.df_response.iloc[self.index, :].drop(['Group'], axis=1)
         return df.copy() if copy else df
 
-    def get_slice(self, size=None, contiguous=True, single=False, dataframe=False, partial_index=None):
+    def get_slice(self, size=None, contiguous=True, single=False, dataframe=False,
+                  partial_index=None):
         # seperator_print()
         # print("CombinedDataGenerator.get_slice")
         # seperator_print()
@@ -1264,11 +1385,14 @@ class CombinedDataGenerator(keras.utils.Sequence):
         if not single:
             df.loc[split, 'Drug2'] = df_orig.loc[split, 'Drug1']
             if not self.data.agg_dose:
-                df.loc[split, 'Dose1'] = df_orig.loc[split, 'Dose1'] - np.log10(df.loc[split, 'DoseSplit'])
-                df.loc[split, 'Dose2'] = df_orig.loc[split, 'Dose1'] - np.log10(1 - df.loc[split, 'DoseSplit'])
+                df.loc[split, 'Dose1'] = df_orig.loc[split, 'Dose1'] - np.log10(
+                    df.loc[split, 'DoseSplit'])
+                df.loc[split, 'Dose2'] = df_orig.loc[split, 'Dose1'] - np.log10(
+                    1 - df.loc[split, 'DoseSplit'])
 
         if dataframe:
-            cols = [target, 'Sample', 'Drug1', 'Drug2'] if not single else [target, 'Sample', 'Drug1']
+            cols = [target, 'Sample', 'Drug1', 'Drug2'] if not single else [target, 'Sample',
+                                                                            'Drug1']
             y = df[cols].reset_index(drop=True)
         else:
             y = values_or_dataframe(df[target], contiguous, dataframe)
