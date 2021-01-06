@@ -16,6 +16,7 @@ from keras import optimizers
 from keras.models import Model
 from keras.layers import Input, Dense, Dropout
 from keras.callbacks import Callback, ModelCheckpoint, ReduceLROnPlateau, LearningRateScheduler, TensorBoard
+
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 from scipy.stats.stats import pearsonr
 
@@ -45,7 +46,7 @@ def set_seed(seed):
 
     if K.backend() == 'tensorflow':
         import tensorflow as tf
-        tf.set_random_seed(seed)
+        tf.random.set_seed(seed)
         candle.set_parallelism_threads()
 
 
@@ -437,7 +438,8 @@ def run(params):
         model.compile(loss=args.loss, optimizer=optimizer, metrics=[mae, r2])
 
         # calculate trainable and non-trainable params
-        params.update(candle.compute_trainable_params(model))
+        # TODO: fix this function for TF 2.4 (works for TF 1.14)
+        #params.update(candle.compute_trainable_params(model))
 
         candle_monitor = candle.CandleRemoteMonitor(params=params)
         timeout_monitor = candle.TerminateOnTimeOut(params['timeout'])
