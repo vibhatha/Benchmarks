@@ -123,7 +123,7 @@ def discretize(df, col, bins=2, cutoffs=None):
 
 def save_combined_dose_response():
     t1 = time.time()
-    df1 = load_single_dose_response(combo_format=True, fraction=False)
+    df1 = load_single_dose_response_cylon(combo_format=True, fraction=False)
     df2 = load_combo_dose_response(fraction=False)
     df = pd.concat([df1, df2])
     df.to_csv('combined_drug_growth', index=False, sep='\t')
@@ -134,7 +134,7 @@ def save_combined_dose_response():
 
 def load_combined_dose_response(rename=True):
     t1 = time.time()
-    df1 = load_single_dose_response(combo_format=True)
+    df1 = load_single_dose_response_cylon(combo_format=True)
     logger.info('Loaded {} single drug dose response measurements'.format(df1.shape[0]))
 
     df2 = load_combo_dose_response()
@@ -187,6 +187,50 @@ def load_single_dose_response(combo_format=False, fraction=True):
         df = df[['SOURCE', 'CELL', 'DRUG1', 'DOSE1', 'DRUG2', 'DOSE2', 'GROWTH', 'STUDY']]
     seperator_print()
     print(f"load_single_dose_response : Time = {time.time() - t1} s")
+    seperator_print()
+    return df
+
+
+def load_single_dose_response_cylon(combo_format=False, fraction=True):
+    # path = get_file(DATA_URL + 'combined_single_drug_growth')
+    t1 = time.time()
+    path = get_file(DATA_URL + 'rescaled_combined_single_drug_growth')
+
+    df = global_cache.get(path)
+    if df is None:
+        # df = pd.read_csv(path, sep='\t', engine='c',
+        #                  na_values=['na', '-', ''],
+        #                  # nrows=10,
+        #                  dtype={'SOURCE': str, 'DRUG_ID': str,
+        #                         'CELLNAME': str, 'CONCUNIT': str,
+        #                         'LOG_CONCENTRATION': np.float32,
+        #                         'EXPID': str, 'GROWTH': np.float32})
+        csv_read_options = CSVReadOptions().use_threads(True).block_size(1 << 30).with_delimiter(
+            "\t")
+        t1 = time.time()
+        tb: Table = read_csv(ctx, path, csv_read_options)
+        global_cache[path] = tb
+
+    tb['DOSE'] = -tb['LOG_CONCENTRATION']
+
+    tb.rename({'CELLNAME': 'CELL', 'DRUG_ID': 'DRUG', 'EXPID': 'STUDY'})
+    tb = tb[['SOURCE', 'CELL', 'DRUG', 'DOSE', 'GROWTH', 'STUDY']]
+
+    if fraction:
+        tb['GROWTH'] /= 100
+
+    if combo_format:
+        tb.rename({'DRUG': 'DRUG1', 'DOSE': 'DOSE1'})
+        pdf_nan = pd.DataFrame([np.nan] * tb.shape[0])
+        tb_nan = Table.from_pandas(ctx, pdf_nan)
+        tb['DRUG2'] = tb_nan
+        tb['DOSE2'] = tb_nan
+        tb['DRUG2'] = tb['DRUG2']#.astype(object)
+        tb['DOSE2'] = tb['DOSE2']#.astype(np.float32)
+        tb = tb[['SOURCE', 'CELL', 'DRUG1', 'DOSE1', 'DRUG2', 'DOSE2', 'GROWTH', 'STUDY']]
+    df = tb.to_pandas()
+    seperator_print()
+    print(f"load_single_dose_response_cylon : Time = {time.time() - t1} s")
     seperator_print()
     return df
 
@@ -278,7 +322,6 @@ def load_aggregated_single_response(target='AUC', min_r2_fit=0.3, max_ec50_se=3,
     seperator_print()
     print(f"load_aggregated_single_response : Time = {time.time() - t1} s")
     seperator_print()
-    print(df)
     return df
 
 
@@ -307,7 +350,7 @@ def load_aggregated_single_response_cylon(target='AUC', min_r2_fit=0.3, max_ec50
         if combo_format:
             tb.rename({'DRUG': 'DRUG1'})
             pdf = pd.DataFrame([np.nan] * tb.shape[0])
-            #pdf = pdf.astype(object)
+            # pdf = pdf.astype(object)
             tb['DRUG2'] = Table.from_pandas(ctx, pdf)
             # tb['DRUG2'] = tb['DRUG2'].astype(object)
             tb = tb[['SOURCE', 'CELL', 'DRUG1', 'DRUG2', target, 'STUDY']]
@@ -322,12 +365,15 @@ def load_aggregated_single_response_cylon(target='AUC', min_r2_fit=0.3, max_ec50
         df = tb.to_pandas()
         if combo_format:
             df['Drug2'] = df['Drug2'].astype(object)
-        return df
+        seperator_print()
+        print(f"load_aggregated_single_response cylon: Time = {time.time() - t1} s")
+        seperator_print()
+    return df
 
 
 def load_drug_data(ncols=None, scaling='std', imputing='mean', dropna=None, add_prefix=True):
     t1 = time.time()
-    df_info = load_drug_info()
+    df_info = load_drug_info_cylon()
     df_info['Drug'] = df_info['PUBCHEM']
 
     df_desc = load_drug_set_descriptors(drug_set='Combined_PubChem', ncols=ncols)
@@ -406,7 +452,7 @@ def load_mordred_descriptors(ncols=None, scaling='std', imputing='mean', dropna=
 def load_drug_descriptors(ncols=None, scaling='std', imputing='mean', dropna=None, add_prefix=True,
                           feature_subset=None):
     t1 = time.time()
-    df_info = load_drug_info()
+    df_info = load_drug_info_cylon()
     df_info['Drug'] = df_info['PUBCHEM']
 
     df_desc = load_drug_set_descriptors(drug_set='Combined_PubChem', ncols=ncols)
@@ -436,7 +482,7 @@ def load_drug_descriptors(ncols=None, scaling='std', imputing='mean', dropna=Non
 def load_drug_fingerprints(ncols=None, scaling='std', imputing='mean', dropna=None, add_prefix=True,
                            feature_subset=None):
     t1 = time.time()
-    df_info = load_drug_info()
+    df_info = load_drug_info_cylon()
     df_info['Drug'] = df_info['PUBCHEM']
 
     df_fp = load_drug_set_fingerprints(drug_set='Combined_PubChem', ncols=ncols)
@@ -474,6 +520,22 @@ def load_drug_info():
     return df
 
 
+def load_drug_info_cylon():
+    t1 = time.time()
+    path = get_file(DATA_URL + 'drug_info')
+    # df = pd.read_csv(path, sep='\t', dtype=object)
+    csv_read_options = CSVReadOptions().use_threads(True).block_size(1 << 30).with_delimiter(
+        "\t")
+    t1 = time.time()
+    tb: Table = read_csv(ctx, path, csv_read_options)
+    df = tb.to_pandas()
+    df['PUBCHEM'] = 'PubChem.CID.' + df['PUBCHEM']
+    seperator_print()
+    print(f"load_drug_info : Time = {time.time() - t1} s")
+    seperator_print()
+    return df
+
+
 def lookup(df, query, ret, keys, match='match'):
     t1 = time.time()
     mask = pd.Series(False, index=range(df.shape[0]))
@@ -493,7 +555,7 @@ def load_cell_metadata():
     path = get_file(DATA_URL + 'cl_metadata')
     df = pd.read_csv(path, sep='\t')
     seperator_print()
-    print(f"load_drug_info : Time = {time.time() - t1} s")
+    print(f"load_cell_meta_data : Time = {time.time() - t1} s")
     seperator_print()
     return df
 
@@ -517,7 +579,7 @@ def cell_name_to_ids(name, source=None):
 
 def drug_name_to_ids(name, source=None):
     t1 = time.time()
-    df1 = load_drug_info()
+    df1 = load_drug_info_cylon()
     path = get_file(DATA_URL + 'NCI_IOA_AOA_drugs')
     df2 = pd.read_csv(path, sep='\t', dtype=str)
     df2['NSC'] = 'NSC.' + df2['NSC']
@@ -766,12 +828,27 @@ def summarize_response_data(df, target=None):
     return df_sum
 
 
+# TODO
+def summarize_response_data_cylon(df, target=None):
+    tb = Table.from_pandas(ctx, df)
+    t1 = time.time()
+    target = target or 'Growth'
+    df_sum = df.groupby('Source').agg({target: 'count', 'Sample': 'nunique',
+                                       'Drug1': 'nunique', 'Drug2': 'nunique'})
+    if 'Dose1' in df_sum:
+        df_sum['MedianDose'] = df.groupby('Source').agg({'Dose1': 'median'})
+    seperator_print()
+    print(f"summarize_response_data : Time = {time.time() - t1} s")
+    seperator_print()
+    return df_sum
+
+
 def assign_partition_groups(df, partition_by='drug_pair'):
     t1 = time.time()
     if partition_by == 'cell':
         group = df['Sample']
     elif partition_by == 'drug_pair':
-        df_info = load_drug_info()
+        df_info = load_drug_info_cylon()
         id_dict = df_info[['ID', 'PUBCHEM']].drop_duplicates(['ID']).set_index('ID').iloc[:, 0]
         group = df['Drug1'].copy()
         group[(df['Drug2'].notnull()) & (df['Drug1'] <= df['Drug2'])] = df['Drug1'] + ',' + df[
