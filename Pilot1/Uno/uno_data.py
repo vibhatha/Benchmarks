@@ -33,6 +33,7 @@ from pycylon import CylonContext
 from pycylon import Table
 from pycylon.io import CSVReadOptions
 from pycylon.io import read_csv
+from pycylon.data.aggregates import AggregationOp
 
 import math
 
@@ -124,7 +125,7 @@ def discretize(df, col, bins=2, cutoffs=None):
 def save_combined_dose_response():
     t1 = time.time()
     df1 = load_single_dose_response_cylon(combo_format=True, fraction=False)
-    df2 = load_combo_dose_response(fraction=False)
+    df2 = load_combo_dose_response_cylon(fraction=False)
     df = pd.concat([df1, df2])
     df.to_csv('combined_drug_growth', index=False, sep='\t')
     seperator_print()
@@ -137,7 +138,7 @@ def load_combined_dose_response(rename=True):
     df1 = load_single_dose_response_cylon(combo_format=True)
     logger.info('Loaded {} single drug dose response measurements'.format(df1.shape[0]))
 
-    df2 = load_combo_dose_response()
+    df2 = load_combo_dose_response_cylon()
     logger.info('Loaded {} drug pair dose response measurements'.format(df2.shape[0]))
 
     df = pd.concat([df1, df2])
@@ -225,8 +226,8 @@ def load_single_dose_response_cylon(combo_format=False, fraction=True):
         tb_nan = Table.from_pandas(ctx, pdf_nan)
         tb['DRUG2'] = tb_nan
         tb['DOSE2'] = tb_nan
-        tb['DRUG2'] = tb['DRUG2']#.astype(object)
-        tb['DOSE2'] = tb['DOSE2']#.astype(np.float32)
+        tb['DRUG2'] = tb['DRUG2']  # .astype(object)
+        tb['DOSE2'] = tb['DOSE2']  # .astype(np.float32)
         tb = tb[['SOURCE', 'CELL', 'DRUG1', 'DOSE1', 'DRUG2', 'DOSE2', 'GROWTH', 'STUDY']]
     df = tb.to_pandas()
     seperator_print()
@@ -277,6 +278,89 @@ def load_combo_dose_response(fraction=True):
     df = df[['SOURCE', 'CELL', 'DRUG1', 'DOSE1', 'DRUG2', 'DOSE2', 'GROWTH', 'STUDY']]
     seperator_print()
     print(f"load_combo_dose_response : Time = {time.time() - t1} s")
+    seperator_print()
+    return df
+
+
+def load_combo_dose_response_cylon(fraction=True):
+    t1 = time.time()
+    path = get_file(DATA_URL + 'ComboDrugGrowth_Nov2017.csv')
+    df = global_cache.get(path)
+    csv_read_options = CSVReadOptions().use_threads(True).block_size(1 << 30).with_delimiter(
+        ",")
+    tab_read_options = CSVReadOptions().use_threads(True).block_size(1 << 30).with_delimiter(
+        "\t")
+    if df is None:
+        df = pd.read_csv(path, sep=',', engine='c',
+                         na_values=['na', '-', ''],
+                         usecols=['CELLNAME', 'NSC1', 'CONC1', 'NSC2', 'CONC2',
+                                  'PERCENTGROWTH', 'VALID', 'SCREENER', 'STUDY'],
+                         # nrows=10000,
+                         dtype={'CELLNAME': str, 'NSC1': str, 'NSC2': str,
+                                'CONC1': np.float32, 'CONC2': np.float32,
+                                'PERCENTGROWTH': np.float32, 'VALID': str,
+                                'SCREENER': str, 'STUDY': str},
+                         error_bad_lines=False, warn_bad_lines=True)
+        t1 = time.time()
+        tb: Table = Table.from_pandas(ctx, df)
+        global_cache[path] = tb
+        tb = tb[['CELLNAME', 'NSC1', 'CONC1', 'NSC2', 'CONC2', 'PERCENTGROWTH', 'VALID', 'SCREENER',
+                 'STUDY']]
+
+        print(df.dtypes, df.shape)
+        print(tb.to_arrow(), tb.shape)
+
+    # df = tb.to_pandas()
+
+    # print(df)
+
+    # df = df[df['VALID'] == 'Y']
+
+    tb = tb[tb['VALID'].applymap(lambda x: (x == 'Y'))]
+
+    # df['SOURCE'] = 'ALMANAC.' + df['SCREENER']
+
+    tb['SOURCE'] = tb['SCREENER'].applymap(lambda x: "ALMANAC." + x)
+
+    df = tb.to_pandas()
+
+    cellmap_path = get_file(DATA_URL + 'NCI60_CELLNAME_to_Combo.txt')
+    # df_cellmap = pd.read_csv(cellmap_path, sep='\t')
+    tb_cellmap: Table = read_csv(ctx, cellmap_path, tab_read_options)
+    df_cellmap = tb_cellmap.to_pandas()
+    df_cellmap.set_index('Name', inplace=True)
+    tb_cellmap.set_index('Name')
+
+    print("cylon cellmap")
+    print(tb_cellmap)
+    print("pandas cellmap")
+    print(df_cellmap)
+
+    cellmap_c = tb_cellmap[['NCI60.ID']].to_pydict()['NCI60.ID']
+    cellmap = df_cellmap[['NCI60.ID']].to_dict()['NCI60.ID']
+
+    df['CELL'] = df['CELLNAME'].map(lambda x: cellmap[x])
+
+    df['DOSE1'] = -np.log10(df['CONC1'])
+    df['DOSE2'] = -np.log10(df['CONC2'])
+
+    print("log10 ")
+    print(df)
+
+    df['DRUG1'] = 'NSC.' + df['NSC1']
+    df['DRUG2'] = 'NSC.' + df['NSC2']
+
+    print("NSC.+ ")
+    print(df)
+
+    if fraction:
+        df['GROWTH'] = df['PERCENTGROWTH'] / 100
+    else:
+        df['GROWTH'] = df['PERCENTGROWTH']
+
+    df = df[['SOURCE', 'CELL', 'DRUG1', 'DOSE1', 'DRUG2', 'DOSE2', 'GROWTH', 'STUDY']]
+    seperator_print()
+    print(f"load_combo_dose_response_cylon : Time = {time.time() - t1} s")
     seperator_print()
     return df
 
@@ -363,8 +447,8 @@ def load_aggregated_single_response_cylon(target='AUC', min_r2_fit=0.3, max_ec50
                            'DRUG': 'Drug', 'STUDY': 'Study'})
         # TODO: remove this and replace once the flow is entirely Cylon
         df = tb.to_pandas()
-        if combo_format:
-            df['Drug2'] = df['Drug2'].astype(object)
+        # if combo_format:
+        #     df['Drug2'] = df['Drug2'].astype(object)
         seperator_print()
         print(f"load_aggregated_single_response cylon: Time = {time.time() - t1} s")
         seperator_print()
@@ -816,6 +900,9 @@ def select_drugs_with_response_range(df_response, lower=0, upper=0, span=0, lowe
 
 
 def summarize_response_data(df, target=None):
+    print("dataframe format: ")
+    print(df)
+    print(df.dtypes)
     t1 = time.time()
     target = target or 'Growth'
     df_sum = df.groupby('Source').agg({target: 'count', 'Sample': 'nunique',
@@ -828,19 +915,29 @@ def summarize_response_data(df, target=None):
     return df_sum
 
 
-# TODO
 def summarize_response_data_cylon(df, target=None):
+    print("dataframe format: ", target)
+    print(df)
+    print(df.dtypes)
+
     tb = Table.from_pandas(ctx, df)
     t1 = time.time()
     target = target or 'Growth'
-    df_sum = df.groupby('Source').agg({target: 'count', 'Sample': 'nunique',
-                                       'Drug1': 'nunique', 'Drug2': 'nunique'})
-    if 'Dose1' in df_sum:
-        df_sum['MedianDose'] = df.groupby('Source').agg({'Dose1': 'median'})
+    # 'Source' column is the 0th column
+    print("Arrow table types ", tb.to_arrow())
+    # TODO:: issue groupby support for strings for operations like nunique
+    tb_sum = tb.groupby(0, [target, 'Sample', 'Drug1', 'Drug2'],
+                        [AggregationOp.COUNT, AggregationOp.NUNIQUE,
+                         AggregationOp.NUNIQUE, AggregationOp.NUNIQUE])
+    # df_sum = df.groupby('Source').agg({target: 'count', 'Sample': 'nunique',
+    #                                    'Drug1': 'nunique', 'Drug2': 'nunique'})
+    if 'Dose1' in tb_sum.column_names:
+        tb_sum['MedianDose'] = tb.groupby(0, ['Dose1'], [AggregationOp.QUANTILE])
+        # df.groupby('Source').agg({'Dose1': 'median'})
     seperator_print()
-    print(f"summarize_response_data : Time = {time.time() - t1} s")
+    print(f"summarize_response_data_cylon : Time = {time.time() - t1} s")
     seperator_print()
-    return df_sum
+    return tb_sum.to_pandas()
 
 
 def assign_partition_groups(df, partition_by='drug_pair'):
