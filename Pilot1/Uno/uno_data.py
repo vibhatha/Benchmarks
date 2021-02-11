@@ -447,8 +447,9 @@ def load_aggregated_single_response_cylon(target='AUC', min_r2_fit=0.3, max_ec50
                            'DRUG': 'Drug', 'STUDY': 'Study'})
         # TODO: remove this and replace once the flow is entirely Cylon
         df = tb.to_pandas()
-        # if combo_format:
-        #     df['Drug2'] = df['Drug2'].astype(object)
+        if combo_format:
+            # TODO:: PyCylon cannot create the table with this mode.
+            df['Drug2'] = df['Drug2'].astype(object)
         seperator_print()
         print(f"load_aggregated_single_response cylon: Time = {time.time() - t1} s")
         seperator_print()
