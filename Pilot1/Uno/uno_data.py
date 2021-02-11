@@ -461,7 +461,7 @@ def load_drug_data(ncols=None, scaling='std', imputing='mean', dropna=None, add_
     df_info = load_drug_info_cylon()
     df_info['Drug'] = df_info['PUBCHEM']
 
-    df_desc = load_drug_set_descriptors(drug_set='Combined_PubChem', ncols=ncols)
+    df_desc = load_drug_set_descriptors_cylon(drug_set='Combined_PubChem', ncols=ncols)
     df_fp = load_drug_set_fingerprints(drug_set='Combined_PubChem', ncols=ncols)
 
     df_desc = pd.merge(df_info[['ID', 'Drug']], df_desc, on='Drug').drop('Drug', 1).rename(
@@ -469,7 +469,7 @@ def load_drug_data(ncols=None, scaling='std', imputing='mean', dropna=None, add_
     df_fp = pd.merge(df_info[['ID', 'Drug']], df_fp, on='Drug').drop('Drug', 1).rename(
         columns={'ID': 'Drug'})
 
-    df_desc2 = load_drug_set_descriptors(drug_set='NCI60',
+    df_desc2 = load_drug_set_descriptors_cylon(drug_set='NCI60',
                                          usecols=df_desc.columns.tolist() if ncols else None)
     df_fp2 = load_drug_set_fingerprints(drug_set='NCI60',
                                         usecols=df_fp.columns.tolist() if ncols else None)
@@ -540,11 +540,11 @@ def load_drug_descriptors(ncols=None, scaling='std', imputing='mean', dropna=Non
     df_info = load_drug_info_cylon()
     df_info['Drug'] = df_info['PUBCHEM']
 
-    df_desc = load_drug_set_descriptors(drug_set='Combined_PubChem', ncols=ncols)
+    df_desc = load_drug_set_descriptors_cylon(drug_set='Combined_PubChem', ncols=ncols)
     df_desc = pd.merge(df_info[['ID', 'Drug']], df_desc, on='Drug').drop('Drug', 1).rename(
         columns={'ID': 'Drug'})
 
-    df_desc2 = load_drug_set_descriptors(drug_set='NCI60',
+    df_desc2 = load_drug_set_descriptors_cylon(drug_set='NCI60',
                                          usecols=df_desc.columns.tolist() if ncols else None)
     tm1 = time.time()
     df_desc = pd.concat([df_desc, df_desc2]).reset_index(drop=True)
@@ -721,6 +721,59 @@ def load_drug_set_descriptors(drug_set='Combined_PubChem', ncols=None, usecols=N
     print(f"\t Other DF Ops {time.time() - tm5} s")
     seperator_print()
     print(f"load_drug_set_descriptors : Time = {time.time() - t1} s")
+    seperator_print()
+    return df
+
+
+def load_drug_set_descriptors_cylon(drug_set='Combined_PubChem', ncols=None, usecols=None,
+                              scaling=None, imputing=None, add_prefix=False):
+    t1 = time.time()
+    path = get_file(DATA_URL + '{}_dragon7_descriptors.tsv'.format(drug_set))
+    tm1 = time.time()
+    csv_read_options = CSVReadOptions().use_threads(True).block_size(1 << 30).with_delimiter(
+        "\t")
+    #df_cols = pd.read_csv(path, engine='c', sep='\t', nrows=0)
+    df_cols = read_csv(ctx, path, csv_read_options)
+
+    print(f"\t CSV Read Time {time.time() - tm1} s")
+    total = df_cols.shape[1] - 1
+    tm2 = time.time()
+    if usecols is not None:
+        usecols = [x for x in usecols if x in df_cols.column_names]
+        if usecols[0] != 'NAME':
+            usecols = ['NAME'] + usecols
+        df_cols = df_cols.loc[:, usecols]
+    elif ncols and ncols < total:
+        usecols = np.random.choice(total, size=ncols, replace=False)
+        usecols = np.append([0], np.add(sorted(usecols), 1))
+        df_cols = df_cols.iloc[:, usecols]
+    print(f"\t DF Iloc Time {time.time() - tm2} s")
+
+    df_cols = df_cols.to_pandas()
+
+    tm3 = time.time()
+    dtype_dict = dict((x, np.float32) for x in df_cols.columns[1:])
+    print(f"\t Dict Conv Time Time {time.time() - tm3} s")
+    tm4 = time.time()
+    df = pd.read_csv(path, engine='c', sep='\t', usecols=usecols, dtype=dtype_dict,
+                     na_values=['na', '-', ''])
+    print(f"\t CSV Read with DType Cols Time {time.time() - tm4} s")
+
+    tm5 = time.time()
+    # TODO: fix default indexing issue in PyCylon
+    df1 = pd.DataFrame(df.loc[:, 'NAME'])
+    df1.rename(columns={'NAME': 'Drug'}, inplace=True)
+
+    df2 = df.drop('NAME', 1)
+    if add_prefix:
+        df2 = df2.add_prefix('dragon7.')
+
+    df2 = impute_and_scale(df2, scaling, imputing, dropna=None)
+
+    df = pd.concat([df1, df2], axis=1)
+    print(f"\t Other DF Ops {time.time() - tm5} s")
+    seperator_print()
+    print(f"load_drug_set_descriptors_cylon : Time = {time.time() - t1} s")
     seperator_print()
     return df
 
