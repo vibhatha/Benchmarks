@@ -565,6 +565,41 @@ def load_drug_descriptors(ncols=None, scaling='std', imputing='mean', dropna=Non
     return df_desc
 
 
+def load_drug_descriptors_cylon(ncols=None, scaling='std', imputing='mean', dropna=None,
+                            add_prefix=True,
+                          feature_subset=None):
+    t1 = time.time()
+    df_info = load_drug_info_cylon()
+    df_info['Drug'] = df_info['PUBCHEM']
+
+    df_desc = load_drug_set_descriptors_cylon(drug_set='Combined_PubChem', ncols=ncols)
+    df_desc = pd.merge(df_info[['ID', 'Drug']], df_desc, on='Drug').drop('Drug', 1).rename(
+        columns={'ID': 'Drug'})
+
+    df_desc2 = load_drug_set_descriptors_cylon(drug_set='NCI60',
+                                         usecols=df_desc.columns.tolist() if ncols else None)
+    tm1 = time.time()
+
+    df_desc = pd.concat([df_desc, df_desc2]).reset_index(drop=True)
+    df1 = pd.DataFrame(df_desc.loc[:, 'Drug'])
+    df2 = df_desc.drop('Drug', 1)
+    if add_prefix:
+        df2 = df2.add_prefix('dragon7.')
+
+    if feature_subset:
+        df2 = df2[[x for x in df2.columns if x in feature_subset]]
+    # TODO: function breaks here when PyCylon Table is used.
+    df2 = impute_and_scale(df2, scaling=scaling, imputing=imputing, dropna=dropna)
+
+    df_desc = pd.concat([df1, df2], axis=1)
+    print(f"\t Other DF Ops [iloc, impute, concat, extraction] {time.time() - tm1} s")
+    logger.info('Loaded combined dragon7 drug descriptors: %s', df_desc.shape)
+    seperator_print()
+    print(f"load_drug_descriptors_cylon : Time = {time.time() - t1} s")
+    seperator_print()
+    return df_desc
+
+
 def load_drug_fingerprints(ncols=None, scaling='std', imputing='mean', dropna=None, add_prefix=True,
                            feature_subset=None):
     t1 = time.time()
@@ -1553,7 +1588,8 @@ class CombinedDataLoader(object):
         for fea in drug_features:
             fea = fea.lower()
             if fea == 'descriptors':
-                df_drug_desc = load_drug_descriptors(ncols=ncols, scaling=scaling, dropna=dropna,
+                df_drug_desc = load_drug_descriptors(ncols=ncols, scaling=scaling,
+                                                         dropna=dropna,
                                                      feature_subset=drug_feature_subset)
             elif fea == 'fingerprints':
                 df_drug_fp = load_drug_fingerprints(ncols=ncols, scaling=scaling, dropna=dropna,
