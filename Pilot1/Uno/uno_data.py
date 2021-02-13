@@ -415,11 +415,11 @@ def load_aggregated_single_response_cylon(target='AUC', min_r2_fit=0.3, max_ec50
     path = get_file(DATA_URL + 'combined_single_response_agg')
 
     if os.path.exists(path):
-        print(f"Data file : {path}")
         csv_read_options = CSVReadOptions().use_threads(True).block_size(1 << 30).with_delimiter(
             "\t")
         t1 = time.time()
         tb: Table = read_csv(ctx, path, csv_read_options)
+        print(f"########>Data file : {path}, Shape : {tb.shape}")
         t2 = time.time()
         tb = tb[(tb['R2fit'] >= min_r2_fit) & (tb['EC50se'] <= max_ec50_se)]
         t3 = time.time()
@@ -461,7 +461,7 @@ def load_drug_data(ncols=None, scaling='std', imputing='mean', dropna=None, add_
     df_info = load_drug_info_cylon()
     df_info['Drug'] = df_info['PUBCHEM']
 
-    df_desc = load_drug_set_descriptors_cylon(drug_set='Combined_PubChem', ncols=ncols)
+    df_desc = load_drug_set_descriptors(drug_set='Combined_PubChem', ncols=ncols)
     df_fp = load_drug_set_fingerprints(drug_set='Combined_PubChem', ncols=ncols)
 
     df_desc = pd.merge(df_info[['ID', 'Drug']], df_desc, on='Drug').drop('Drug', 1).rename(
@@ -469,7 +469,7 @@ def load_drug_data(ncols=None, scaling='std', imputing='mean', dropna=None, add_
     df_fp = pd.merge(df_info[['ID', 'Drug']], df_fp, on='Drug').drop('Drug', 1).rename(
         columns={'ID': 'Drug'})
 
-    df_desc2 = load_drug_set_descriptors_cylon(drug_set='NCI60',
+    df_desc2 = load_drug_set_descriptors(drug_set='NCI60',
                                          usecols=df_desc.columns.tolist() if ncols else None)
     df_fp2 = load_drug_set_fingerprints(drug_set='NCI60',
                                         usecols=df_fp.columns.tolist() if ncols else None)
@@ -540,11 +540,11 @@ def load_drug_descriptors(ncols=None, scaling='std', imputing='mean', dropna=Non
     df_info = load_drug_info_cylon()
     df_info['Drug'] = df_info['PUBCHEM']
 
-    df_desc = load_drug_set_descriptors_cylon(drug_set='Combined_PubChem', ncols=ncols)
+    df_desc = load_drug_set_descriptors(drug_set='Combined_PubChem', ncols=ncols)
     df_desc = pd.merge(df_info[['ID', 'Drug']], df_desc, on='Drug').drop('Drug', 1).rename(
         columns={'ID': 'Drug'})
 
-    df_desc2 = load_drug_set_descriptors_cylon(drug_set='NCI60',
+    df_desc2 = load_drug_set_descriptors(drug_set='NCI60',
                                          usecols=df_desc.columns.tolist() if ncols else None)
     tm1 = time.time()
     df_desc = pd.concat([df_desc, df_desc2]).reset_index(drop=True)
@@ -616,6 +616,8 @@ def load_drug_info_cylon():
     df = tb.to_pandas()
     df['PUBCHEM'] = 'PubChem.CID.' + df['PUBCHEM']
     seperator_print()
+    print(f"#######> Filename: drug_info")
+    print(tb)
     print(f"load_drug_info : Time = {time.time() - t1} s")
     seperator_print()
     return df
@@ -720,19 +722,20 @@ def load_drug_set_descriptors(drug_set='Combined_PubChem', ncols=None, usecols=N
     df = pd.concat([df1, df2], axis=1)
     print(f"\t Other DF Ops {time.time() - tm5} s")
     seperator_print()
+    print("####>>>> Filename: ", path)
     print(f"load_drug_set_descriptors : Time = {time.time() - t1} s")
     seperator_print()
     return df
 
 
 def load_drug_set_descriptors_cylon(drug_set='Combined_PubChem', ncols=None, usecols=None,
-                              scaling=None, imputing=None, add_prefix=False):
+                                    scaling=None, imputing=None, add_prefix=False):
     t1 = time.time()
     path = get_file(DATA_URL + '{}_dragon7_descriptors.tsv'.format(drug_set))
     tm1 = time.time()
     csv_read_options = CSVReadOptions().use_threads(True).block_size(1 << 30).with_delimiter(
         "\t")
-    #df_cols = pd.read_csv(path, engine='c', sep='\t', nrows=0)
+    # df_cols = pd.read_csv(path, engine='c', sep='\t', nrows=0)
     df_cols = read_csv(ctx, path, csv_read_options)
 
     print(f"\t CSV Read Time {time.time() - tm1} s")
@@ -844,9 +847,28 @@ def encode_sources(sources):
     df = pd.concat([df1, df], axis=1)
     df = df.set_index('Source').reset_index()
     seperator_print()
+    print("All sources : ", sources)
     print(f"encode_sources : Time = {time.time() - t1} s")
     seperator_print()
     return df
+
+
+def encode_sources_cylon(sources):
+    t1 = time.time()
+    df = pd.get_dummies(sources, prefix='source', prefix_sep='.')
+    df['Source'] = sources
+    source_l1 = df['Source'].str.extract('^(\S+)\.', expand=False)
+    df1 = pd.get_dummies(source_l1, prefix='source.L1', prefix_sep='.')
+    df = pd.concat([df1, df], axis=1)
+    tb = Table.from_pandas(ctx, df)
+    tb.set_index('Source')
+    tb.reset_index()
+    #df = df.set_index('Source').reset_index()
+    seperator_print()
+    print("All sources : ", sources)
+    print(f"encode_sources_cylon : Time = {time.time() - t1} s")
+    seperator_print()
+    return tb.to_pandas()
 
 
 def load_cell_rnaseq(ncols=None, scaling='std', imputing='mean', add_prefix=True,
@@ -916,6 +938,7 @@ def load_cell_rnaseq(ncols=None, scaling='std', imputing='mean', add_prefix=True
 
     logger.info('Loaded combined RNAseq data: %s', df.shape)
     seperator_print()
+    print(f"######> Filename: {filename}")
     print(f"load_cell_rnaseq : Time = {time.time() - t1} s")
     seperator_print()
     return df
@@ -980,7 +1003,7 @@ def summarize_response_data_cylon(df, target=None):
     # 'Source' column is the 0th column
     print("Arrow table types ", tb.to_arrow())
     # TODO:: issue groupby support for strings for operations like nunique
-    tb_sum = tb.groupby(0, [target, 'Sample', 'Drug1', 'Drug2'],
+    tb_sum = tb.groupby('Source', [target, 'Sample', 'Drug1', 'Drug2'],
                         [AggregationOp.COUNT, AggregationOp.NUNIQUE,
                          AggregationOp.NUNIQUE, AggregationOp.NUNIQUE])
     # df_sum = df.groupby('Source').agg({target: 'count', 'Sample': 'nunique',
@@ -995,6 +1018,9 @@ def summarize_response_data_cylon(df, target=None):
 
 
 def assign_partition_groups(df, partition_by='drug_pair'):
+    print("df>>>assign_partition_groups>>>>")
+    print(df.dtypes)
+    print(df)
     t1 = time.time()
     if partition_by == 'cell':
         group = df['Sample']
@@ -1004,6 +1030,58 @@ def assign_partition_groups(df, partition_by='drug_pair'):
         group = df['Drug1'].copy()
         group[(df['Drug2'].notnull()) & (df['Drug1'] <= df['Drug2'])] = df['Drug1'] + ',' + df[
             'Drug2']
+        group[(df['Drug2'].notnull()) & (df['Drug1'] > df['Drug2'])] = df['Drug2'] + ',' + df[
+            'Drug1']
+        group2 = group.map(id_dict)
+        mapped = group2.notnull()
+        group[mapped] = group2[mapped]
+    elif partition_by == 'index':
+        group = df.reset_index()['index']
+    logger.info('Grouped response data by %s: %d groups', partition_by, group.nunique())
+    seperator_print()
+    print(f"assign_partition_groups : Time = {time.time() - t1} s")
+    seperator_print()
+    return group
+
+
+def assign_partition_groups_cylon(df, partition_by='drug_pair'):
+    print("df>>>assign_partition_groups", df.dtypes)
+    print(df)
+    t1 = time.time()
+    tb = Table.from_pandas(ctx, df)
+    print("cylon table")
+    # print(tb)
+    print(tb.to_arrow())
+    if partition_by == 'cell':
+        group = df['Sample']
+    elif partition_by == 'drug_pair':
+        df_info = load_drug_info_cylon()
+        tb_info = Table.from_pandas(ctx, df_info)
+
+        id_dict = df_info[['ID', 'PUBCHEM']].drop_duplicates(['ID']).set_index('ID').iloc[:, 0]
+        tb_id_dict = tb_info[['ID', 'PUBCHEM']].unique(['ID'])
+        tb_id_dict.set_index('ID')
+        tb_id_dict = tb_id_dict.iloc[:, 0]
+
+        print(">>> 1: ", id_dict.shape, tb_id_dict.shape)
+
+        group = df['Drug1'].copy()
+        tb_group = Table.from_pandas(ctx, df)['Drug1']
+        tx1 = time.time()
+        group[(df['Drug2'].notnull()) & (df['Drug1'] <= df['Drug2'])] = df['Drug1'] + ',' + df[
+            'Drug2']
+        tx2 = time.time()
+        l_val_2 = group[(df['Drug2'].notnull()) & (df['Drug1'] <= df['Drug2'])]
+        tx3 = time.time()
+        r_val_1 = Table.from_pandas(ctx, pd.DataFrame(df['Drug1'] + ',' + df['Drug2']))
+        tx4 = time.time()
+        l_val_1 = tb_group[(tb['Drug2'].notnull()) & (tb['Drug1'] <= tb['Drug2'])]
+        tx5 = time.time()
+        print("tx", tx2 - tx1, tx3 - tx2, tx5-tx4)
+        print("r, l, l2", r_val_1.shape, l_val_1.shape, l_val_2.shape)
+        # TODO: Fix table-to-table assignment in PyCylon.
+        tb_group[(tb['Drug2'].notnull()) & (tb['Drug1'] <= tb['Drug2'])] = r_val_1
+
         group[(df['Drug2'].notnull()) & (df['Drug1'] > df['Drug2'])] = df['Drug2'] + ',' + df[
             'Drug1']
         group2 = group.map(id_dict)
@@ -1306,7 +1384,7 @@ class CombinedDataLoader(object):
             logger.info(summarize_response_data(df_response, target=agg_dose))
 
         all_sources = df_response['Source'].unique()
-        df_source = encode_sources(all_sources)
+        df_source = encode_sources_cylon(all_sources)
 
         if 'all' in train_sources:
             train_sources = all_sources
@@ -1424,7 +1502,8 @@ class CombinedDataLoader(object):
             logger.info(summarize_response_data(df_response, target=agg_dose))
 
         tm9 = time.time()
-        df_response = df_response.assign(Group=assign_partition_groups(df_response, partition_by))
+        df_response = df_response.assign(Group=assign_partition_groups(df_response,
+                                                                             partition_by))
         print(f"\t DF assign {time.time() - tm9} s")
 
         self.agg_dose = agg_dose
