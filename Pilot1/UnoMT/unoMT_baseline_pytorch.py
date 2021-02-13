@@ -62,6 +62,8 @@ def run(params):
 
     modelUno = UnoMTModel(args, use_cuda, device)
 
+    print(">>>>> Args::", args)
+
     modelUno.pre_train_config()
     modelUno.train()
     modelUno.print_final_stats()

@@ -82,7 +82,7 @@ lr_decay_factor=0.98
 trn_batch_size=32
 val_batch_size=256
 max_num_batches=1000
-epochs=1000
+epochs=1
 
 # Miscellaneous settings ##################################
 # multi_gpu=True

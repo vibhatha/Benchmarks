@@ -125,6 +125,17 @@ def discretize(df, col, bins=2, cutoffs=None):
 
 def save_combined_dose_response():
     t1 = time.time()
+    df1 = load_single_dose_response(combo_format=True, fraction=False)
+    df2 = load_combo_dose_response(fraction=False)
+    df = pd.concat([df1, df2])
+    df.to_csv('combined_drug_growth', index=False, sep='\t')
+    seperator_print()
+    print(f"save_combined_dose_response : Time = {time.time() - t1} s")
+    seperator_print()
+
+
+def save_combined_dose_response_cylon():
+    t1 = time.time()
     df1 = load_single_dose_response_cylon(combo_format=True, fraction=False)
     df2 = load_combo_dose_response_cylon(fraction=False)
     df = pd.concat([df1, df2])
@@ -135,6 +146,28 @@ def save_combined_dose_response():
 
 
 def load_combined_dose_response(rename=True):
+    t1 = time.time()
+    df1 = load_single_dose_response(combo_format=True)
+    logger.info('Loaded {} single drug dose response measurements'.format(df1.shape[0]))
+
+    df2 = load_combo_dose_response()
+    logger.info('Loaded {} drug pair dose response measurements'.format(df2.shape[0]))
+
+    df = pd.concat([df1, df2])
+    logger.info('Combined dose response data contains sources: {}'.format(df['SOURCE'].unique()))
+
+    if rename:
+        df = df.rename(columns={'SOURCE': 'Source', 'CELL': 'Sample',
+                                'DRUG1': 'Drug1', 'DRUG2': 'Drug2',
+                                'DOSE1': 'Dose1', 'DOSE2': 'Dose2',
+                                'GROWTH': 'Growth', 'STUDY': 'Study'})
+    seperator_print()
+    print(f"load_combined_dose_response : Time = {time.time() - t1} s")
+    seperator_print()
+    return df
+
+
+def load_combined_dose_response_cylon(rename=True):
     t1 = time.time()
     df1 = load_single_dose_response_cylon(combo_format=True)
     logger.info('Loaded {} single drug dose response measurements'.format(df1.shape[0]))
@@ -459,6 +492,48 @@ def load_aggregated_single_response_cylon(target='AUC', min_r2_fit=0.3, max_ec50
 
 def load_drug_data(ncols=None, scaling='std', imputing='mean', dropna=None, add_prefix=True):
     t1 = time.time()
+    df_info = load_drug_info()
+    df_info['Drug'] = df_info['PUBCHEM']
+
+    df_desc = load_drug_set_descriptors(drug_set='Combined_PubChem', ncols=ncols)
+    df_fp = load_drug_set_fingerprints(drug_set='Combined_PubChem', ncols=ncols)
+
+    df_desc = pd.merge(df_info[['ID', 'Drug']], df_desc, on='Drug').drop('Drug', 1).rename(
+        columns={'ID': 'Drug'})
+    df_fp = pd.merge(df_info[['ID', 'Drug']], df_fp, on='Drug').drop('Drug', 1).rename(
+        columns={'ID': 'Drug'})
+
+    df_desc2 = load_drug_set_descriptors(drug_set='NCI60',
+                                               usecols=df_desc.columns.tolist() if ncols else None)
+    df_fp2 = load_drug_set_fingerprints(drug_set='NCI60',
+                                        usecols=df_fp.columns.tolist() if ncols else None)
+
+    df_desc = pd.concat([df_desc, df_desc2]).reset_index(drop=True)
+    df1 = pd.DataFrame(df_desc.loc[:, 'Drug'])
+    df2 = df_desc.drop('Drug', 1)
+    df2 = impute_and_scale(df2, scaling=scaling, imputing=imputing, dropna=dropna)
+    if add_prefix:
+        df2 = df2.add_prefix('dragon7.')
+    df_desc = pd.concat([df1, df2], axis=1)
+
+    df_fp = pd.concat([df_fp, df_fp2]).reset_index(drop=True)
+    df1 = pd.DataFrame(df_fp.loc[:, 'Drug'])
+    df2 = df_fp.drop('Drug', 1)
+    df2 = impute_and_scale(df2, scaling=None, imputing=imputing, dropna=dropna)
+    if add_prefix:
+        df2 = df2.add_prefix('dragon7.')
+    df_fp = pd.concat([df1, df2], axis=1)
+
+    logger.info('Loaded combined dragon7 drug descriptors: %s', df_desc.shape)
+    logger.info('Loaded combined dragon7 drug fingerprints: %s', df_fp.shape)
+    seperator_print()
+    print(f"load_drug_data : Time = {time.time() - t1} s")
+    seperator_print()
+    return df_desc, df_fp
+
+
+def load_drug_data_cylon(ncols=None, scaling='std', imputing='mean', dropna=None, add_prefix=True):
+    t1 = time.time()
     df_info = load_drug_info_cylon()
     df_info['Drug'] = df_info['PUBCHEM']
 
@@ -471,7 +546,7 @@ def load_drug_data(ncols=None, scaling='std', imputing='mean', dropna=None, add_
         columns={'ID': 'Drug'})
 
     df_desc2 = load_drug_set_descriptors_cylon(drug_set='NCI60',
-                                         usecols=df_desc.columns.tolist() if ncols else None)
+                                               usecols=df_desc.columns.tolist() if ncols else None)
     df_fp2 = load_drug_set_fingerprints(drug_set='NCI60',
                                         usecols=df_fp.columns.tolist() if ncols else None)
 
@@ -538,14 +613,14 @@ def load_mordred_descriptors(ncols=None, scaling='std', imputing='mean', dropna=
 def load_drug_descriptors(ncols=None, scaling='std', imputing='mean', dropna=None, add_prefix=True,
                           feature_subset=None):
     t1 = time.time()
-    df_info = load_drug_info_cylon()
+    df_info = load_drug_info()
     df_info['Drug'] = df_info['PUBCHEM']
 
-    df_desc = load_drug_set_descriptors_cylon(drug_set='Combined_PubChem', ncols=ncols)
+    df_desc = load_drug_set_descriptors(drug_set='Combined_PubChem', ncols=ncols)
     df_desc = pd.merge(df_info[['ID', 'Drug']], df_desc, on='Drug').drop('Drug', 1).rename(
         columns={'ID': 'Drug'})
 
-    df_desc2 = load_drug_set_descriptors_cylon(drug_set='NCI60',
+    df_desc2 = load_drug_set_descriptors(drug_set='NCI60',
                                          usecols=df_desc.columns.tolist() if ncols else None)
     tm1 = time.time()
     df_desc = pd.concat([df_desc, df_desc2]).reset_index(drop=True)
@@ -566,8 +641,8 @@ def load_drug_descriptors(ncols=None, scaling='std', imputing='mean', dropna=Non
 
 
 def load_drug_descriptors_cylon(ncols=None, scaling='std', imputing='mean', dropna=None,
-                            add_prefix=True,
-                          feature_subset=None):
+                                add_prefix=True,
+                                feature_subset=None):
     t1 = time.time()
     df_info = load_drug_info_cylon()
     df_info['Drug'] = df_info['PUBCHEM']
@@ -577,7 +652,7 @@ def load_drug_descriptors_cylon(ncols=None, scaling='std', imputing='mean', drop
         columns={'ID': 'Drug'})
 
     df_desc2 = load_drug_set_descriptors_cylon(drug_set='NCI60',
-                                         usecols=df_desc.columns.tolist() if ncols else None)
+                                               usecols=df_desc.columns.tolist() if ncols else None)
     tm1 = time.time()
 
     df_desc = pd.concat([df_desc, df_desc2]).reset_index(drop=True)
@@ -602,6 +677,37 @@ def load_drug_descriptors_cylon(ncols=None, scaling='std', imputing='mean', drop
 
 def load_drug_fingerprints(ncols=None, scaling='std', imputing='mean', dropna=None, add_prefix=True,
                            feature_subset=None):
+    t1 = time.time()
+    df_info = load_drug_info()
+    df_info['Drug'] = df_info['PUBCHEM']
+
+    df_fp = load_drug_set_fingerprints(drug_set='Combined_PubChem', ncols=ncols)
+    df_fp = pd.merge(df_info[['ID', 'Drug']], df_fp, on='Drug').drop('Drug', 1).rename(
+        columns={'ID': 'Drug'})
+
+    df_fp2 = load_drug_set_fingerprints(drug_set='NCI60',
+                                        usecols=df_fp.columns.tolist() if ncols else None)
+
+    df_fp = pd.concat([df_fp, df_fp2]).reset_index(drop=True)
+    df1 = pd.DataFrame(df_fp.loc[:, 'Drug'])
+    df2 = df_fp.drop('Drug', 1)
+    if add_prefix:
+        df2 = df2.add_prefix('dragon7.')
+    if feature_subset:
+        df2 = df2[[x for x in df2.columns if x in feature_subset]]
+    df2 = impute_and_scale(df2, scaling=None, imputing=imputing, dropna=dropna)
+    df_fp = pd.concat([df1, df2], axis=1)
+
+    logger.info('Loaded combined dragon7 drug fingerprints: %s', df_fp.shape)
+    seperator_print()
+    print(f"load_drug_fingerprints : Time = {time.time() - t1} s")
+    seperator_print()
+    return df_fp
+
+
+def load_drug_fingerprints_cylon(ncols=None, scaling='std', imputing='mean', dropna=None,
+                                 add_prefix=True,
+                                 feature_subset=None):
     t1 = time.time()
     df_info = load_drug_info_cylon()
     df_info['Drug'] = df_info['PUBCHEM']
@@ -702,6 +808,24 @@ def cell_name_to_ids(name, source=None):
 
 def drug_name_to_ids(name, source=None):
     t1 = time.time()
+    df1 = load_drug_info()
+    path = get_file(DATA_URL + 'NCI_IOA_AOA_drugs')
+    df2 = pd.read_csv(path, sep='\t', dtype=str)
+    df2['NSC'] = 'NSC.' + df2['NSC']
+    hits1 = lookup(df1, name, 'ID', ['ID', 'NAME', 'CLEAN_NAME', 'PUBCHEM'])
+    hits2 = lookup(df2, name, 'NSC', ['NSC', 'Generic Name', 'Preffered Name'])
+    hits = hits1 + hits2
+    if source:
+        hits = [x for x in hits if x.startswith(source.upper() + '.')]
+    seperator_print()
+    print(f"drug_name_to_ids : Time = {time.time() - t1} s")
+    seperator_print()
+    return hits
+
+
+def drug_name_to_ids_cylon(name, source=None):
+    # TODO: Data load to Cylon
+    t1 = time.time()
     df1 = load_drug_info_cylon()
     path = get_file(DATA_URL + 'NCI_IOA_AOA_drugs')
     df2 = pd.read_csv(path, sep='\t', dtype=str)
@@ -722,7 +846,7 @@ def load_drug_set_descriptors(drug_set='Combined_PubChem', ncols=None, usecols=N
     t1 = time.time()
     path = get_file(DATA_URL + '{}_dragon7_descriptors.tsv'.format(drug_set))
     tm1 = time.time()
-    df_cols = pd.read_csv(path, engine='c', sep='\t')#, nrows=0)
+    df_cols = pd.read_csv(path, engine='c', sep='\t', nrows=0)
     print(f"\t CSV Read Time {time.time() - tm1} s")
     total = df_cols.shape[1] - 1
     tm2 = time.time()
@@ -771,8 +895,8 @@ def load_drug_set_descriptors_cylon(drug_set='Combined_PubChem', ncols=None, use
     tm1 = time.time()
     csv_read_options = CSVReadOptions().use_threads(True).block_size(1 << 30).with_delimiter(
         "\t")
-    # df_cols = pd.read_csv(path, engine='c', sep='\t', nrows=0)
-    df_cols = read_csv(ctx, path, csv_read_options)
+    df_cols = pd.read_csv(path, engine='c', sep='\t', nrows=0)
+    df_cols = Table.from_pandas(ctx, df_cols)
 
     print(f"\t CSV Read Time {time.time() - tm1} s")
     total = df_cols.shape[1] - 1
@@ -800,17 +924,17 @@ def load_drug_set_descriptors_cylon(drug_set='Combined_PubChem', ncols=None, use
     df = pd.read_csv(path, engine='c', sep='\t', usecols=usecols, dtype=dtype_dict,
                      na_values=['na', '-', ''])
     df = Table.from_pandas(ctx, df)
-    #df = read_csv(ctx, path, csv_read_options)
+    # df = read_csv(ctx, path, csv_read_options)
     print(f"\t CSV Read with DType Cols Time {time.time() - tm4} s")
 
     tm5 = time.time()
     # TODO: fix default indexing issue in PyCylon
-    #df1 = pd.DataFrame(df.loc[:, 'NAME'])
+    # df1 = pd.DataFrame(df.loc[:, 'NAME'])
     df1 = df.loc[:, 'NAME']
-    #df1.rename(columns={'NAME': 'Drug'}, inplace=True)
+    # df1.rename(columns={'NAME': 'Drug'}, inplace=True)
     df1.rename({'NAME': 'Drug'})
 
-    #df2 = df.drop('NAME', 1)
+    # df2 = df.drop('NAME', 1)
     df2 = df.drop(['NAME'])
     if add_prefix:
         df2 = df2.add_prefix('dragon7.')
@@ -910,7 +1034,7 @@ def encode_sources_cylon(sources):
     tb = Table.from_pandas(ctx, df)
     tb.set_index('Source')
     tb.reset_index()
-    #df = df.set_index('Source').reset_index()
+    # df = df.set_index('Source').reset_index()
     seperator_print()
     print("All sources : ", sources)
     print(f"encode_sources_cylon : Time = {time.time() - t1} s")
@@ -936,7 +1060,7 @@ def load_cell_rnaseq(ncols=None, scaling='std', imputing='mean', add_prefix=True
 
     path = get_file(DATA_URL + filename)
     t_f = time.time()
-    df_cols = pd.read_csv(path, engine='c', sep='\t')
+    df_cols = pd.read_csv(path, engine='c', sep='\t', nrows=0) #n_row=0
     t_e = time.time()
     total = df_cols.shape[1] - 1  # remove Sample column
     if 'Cancer_type_id' in df_cols.columns:
@@ -963,7 +1087,7 @@ def load_cell_rnaseq(ncols=None, scaling='std', imputing='mean', add_prefix=True
     df_source = pd.concat([sources, df_source], axis=1)
     t3 = time.time()
 
-    print(f"IM T1 {(t2-t1) - (t_e - t_f)} s, IM T2: {t3-t2} s")
+    print(f"IM T1 {(t2 - t1) - (t_e - t_f)} s, IM T2: {t3 - t2} s")
 
     df1 = df['Sample']
     if embed_feature_source:
@@ -997,9 +1121,9 @@ def load_cell_rnaseq(ncols=None, scaling='std', imputing='mean', add_prefix=True
 
 
 def load_cell_rnaseq_cylon(ncols=None, scaling='std', imputing='mean', add_prefix=True,
-                     use_landmark_genes=False, use_filtered_genes=False,
-                     feature_subset=None, preprocess_rnaseq=None,
-                     embed_feature_source=False, sample_set=None, index_by_sample=False):
+                           use_landmark_genes=False, use_filtered_genes=False,
+                           feature_subset=None, preprocess_rnaseq=None,
+                           embed_feature_source=False, sample_set=None, index_by_sample=False):
     t1 = time.time()
     if use_landmark_genes:
         filename = 'combined_rnaseq_data_lincs1000'
@@ -1013,12 +1137,12 @@ def load_cell_rnaseq_cylon(ncols=None, scaling='std', imputing='mean', add_prefi
         filename += ('_' + preprocess_rnaseq)  # 'source_scale' or 'combat'
 
     path = get_file(DATA_URL + filename)
-    #df_cols = pd.read_csv(path, engine='c', sep='\t', nrows=0)
+    df_cols = pd.read_csv(path, engine='c', sep='\t', nrows=0)
 
-    csv_read_options = CSVReadOptions().use_threads(True).block_size(1 << 30).with_delimiter(
-        "\t")
+    # csv_read_options = CSVReadOptions().use_threads(True).block_size(1 << 30).with_delimiter(
+    #     "\t")
     t_f = time.time()
-    df_cols: Table = read_csv(ctx, path, csv_read_options)
+    df_cols: Table = Table.from_pandas(ctx, df_cols)
     t_e = time.time()
     total = df_cols.shape[1] - 1  # remove Sample column
     if 'Cancer_type_id' in df_cols.column_names:
@@ -1170,7 +1294,7 @@ def assign_partition_groups(df, partition_by='drug_pair'):
     if partition_by == 'cell':
         group = df['Sample']
     elif partition_by == 'drug_pair':
-        df_info = load_drug_info_cylon()
+        df_info = load_drug_info()
         id_dict = df_info[['ID', 'PUBCHEM']].drop_duplicates(['ID']).set_index('ID').iloc[:, 0]
         group = df['Drug1'].copy()
         group[(df['Drug2'].notnull()) & (df['Drug1'] <= df['Drug2'])] = df['Drug1'] + ',' + df[
@@ -1222,7 +1346,7 @@ def assign_partition_groups_cylon(df, partition_by='drug_pair'):
         tx4 = time.time()
         l_val_1 = tb_group[(tb['Drug2'].notnull()) & (tb['Drug1'] <= tb['Drug2'])]
         tx5 = time.time()
-        print("tx", tx2 - tx1, tx3 - tx2, tx5-tx4)
+        print("tx", tx2 - tx1, tx3 - tx2, tx5 - tx4)
         print("r, l, l2", r_val_1.shape, l_val_1.shape, l_val_2.shape)
         # TODO: Fix table-to-table assignment in PyCylon.
         tb_group[(tb['Drug2'].notnull()) & (tb['Drug1'] <= tb['Drug2'])] = r_val_1
@@ -1520,7 +1644,7 @@ class CombinedDataLoader(object):
         logger.info('Loading data from scratch ...')
 
         if agg_dose:
-            df_response = load_aggregated_single_response_cylon(target=agg_dose, combo_format=True)
+            df_response = load_aggregated_single_response(target=agg_dose, combo_format=True)
         else:
             df_response = load_combined_dose_response()
 
@@ -1577,7 +1701,7 @@ class CombinedDataLoader(object):
         for fea in cell_features:
             fea = fea.lower()
             if fea == 'rnaseq' or fea == 'expression':
-                df_cell_rnaseq = load_cell_rnaseq_cylon(ncols=ncols, scaling=scaling,
+                df_cell_rnaseq = load_cell_rnaseq(ncols=ncols, scaling=scaling,
                                                   use_landmark_genes=use_landmark_genes,
                                                   use_filtered_genes=use_filtered_genes,
                                                   feature_subset=cell_feature_subset,
@@ -1589,7 +1713,7 @@ class CombinedDataLoader(object):
             fea = fea.lower()
             if fea == 'descriptors':
                 df_drug_desc = load_drug_descriptors(ncols=ncols, scaling=scaling,
-                                                         dropna=dropna,
+                                                     dropna=dropna,
                                                      feature_subset=drug_feature_subset)
             elif fea == 'fingerprints':
                 df_drug_fp = load_drug_fingerprints(ncols=ncols, scaling=scaling, dropna=dropna,
@@ -1649,7 +1773,7 @@ class CombinedDataLoader(object):
 
         tm9 = time.time()
         df_response = df_response.assign(Group=assign_partition_groups(df_response,
-                                                                             partition_by))
+                                                                       partition_by))
         print(f"\t DF assign {time.time() - tm9} s")
 
         self.agg_dose = agg_dose

@@ -214,7 +214,7 @@ class UnoMTModel(object):
             'ae_lr': 2e-1,
             'ae_reg': 1e-5,
             'lr_decay_factor': 1.0,
-            'max_num_epochs': 1000,
+            'max_num_epochs': 5,
             'early_stop_patience': 50, }
 
         self.encoder_kwarg = {
@@ -424,10 +424,10 @@ class UnoMTModel(object):
         self.patience = 0
         self.start_time = time.time()
 
-
+        print(">>>>>>>>>>>>>> Num Epochs : ", args.epochs)
         for epoch in range(args.epochs):
 
-            print('=' * 80 + '\nTraining Epoch %3i:' % (epoch + 1))
+            print('=' * 80 + '\nTraining Epoch %3i/%3i:' % (epoch + 1, args.epochs))
             epoch_start_time = time.time()
             
             self.resp_lr_decay.step(epoch)

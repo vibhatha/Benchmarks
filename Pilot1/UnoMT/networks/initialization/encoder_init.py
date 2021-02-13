@@ -186,7 +186,7 @@ def get_encoder(
     if verbose:
         print('=' * 80)
         print('Training log for autoencoder model (%s): ' % model_path)
-
+    print(f">>> Max num epochs:  {max_num_epochs}")
     for epoch in range(max_num_epochs):
 
         lr_decay.step(epoch)
@@ -441,7 +441,7 @@ if __name__ == '__main__':
         'ae_opt': 'sgd',
         'ae_lr': 0.2,
         'lr_decay_factor': 1.0,
-        'max_num_epochs': 1000,
+        'max_num_epochs': 5,
         'early_stop_patience': 50, }
 
     gene_encoder = get_gene_encoder(
