@@ -29,6 +29,7 @@ import file_utils
 
 # cylon imports
 
+import pyarrow as pa
 from pycylon import CylonContext
 from pycylon import Table
 from pycylon.io import CSVReadOptions
@@ -461,7 +462,7 @@ def load_drug_data(ncols=None, scaling='std', imputing='mean', dropna=None, add_
     df_info = load_drug_info_cylon()
     df_info['Drug'] = df_info['PUBCHEM']
 
-    df_desc = load_drug_set_descriptors(drug_set='Combined_PubChem', ncols=ncols)
+    df_desc = load_drug_set_descriptors_cylon(drug_set='Combined_PubChem', ncols=ncols)
     df_fp = load_drug_set_fingerprints(drug_set='Combined_PubChem', ncols=ncols)
 
     df_desc = pd.merge(df_info[['ID', 'Drug']], df_desc, on='Drug').drop('Drug', 1).rename(
@@ -469,7 +470,7 @@ def load_drug_data(ncols=None, scaling='std', imputing='mean', dropna=None, add_
     df_fp = pd.merge(df_info[['ID', 'Drug']], df_fp, on='Drug').drop('Drug', 1).rename(
         columns={'ID': 'Drug'})
 
-    df_desc2 = load_drug_set_descriptors(drug_set='NCI60',
+    df_desc2 = load_drug_set_descriptors_cylon(drug_set='NCI60',
                                          usecols=df_desc.columns.tolist() if ncols else None)
     df_fp2 = load_drug_set_fingerprints(drug_set='NCI60',
                                         usecols=df_fp.columns.tolist() if ncols else None)
@@ -540,11 +541,11 @@ def load_drug_descriptors(ncols=None, scaling='std', imputing='mean', dropna=Non
     df_info = load_drug_info_cylon()
     df_info['Drug'] = df_info['PUBCHEM']
 
-    df_desc = load_drug_set_descriptors(drug_set='Combined_PubChem', ncols=ncols)
+    df_desc = load_drug_set_descriptors_cylon(drug_set='Combined_PubChem', ncols=ncols)
     df_desc = pd.merge(df_info[['ID', 'Drug']], df_desc, on='Drug').drop('Drug', 1).rename(
         columns={'ID': 'Drug'})
 
-    df_desc2 = load_drug_set_descriptors(drug_set='NCI60',
+    df_desc2 = load_drug_set_descriptors_cylon(drug_set='NCI60',
                                          usecols=df_desc.columns.tolist() if ncols else None)
     tm1 = time.time()
     df_desc = pd.concat([df_desc, df_desc2]).reset_index(drop=True)
@@ -686,7 +687,7 @@ def load_drug_set_descriptors(drug_set='Combined_PubChem', ncols=None, usecols=N
     t1 = time.time()
     path = get_file(DATA_URL + '{}_dragon7_descriptors.tsv'.format(drug_set))
     tm1 = time.time()
-    df_cols = pd.read_csv(path, engine='c', sep='\t', nrows=0)
+    df_cols = pd.read_csv(path, engine='c', sep='\t')#, nrows=0)
     print(f"\t CSV Read Time {time.time() - tm1} s")
     total = df_cols.shape[1] - 1
     tm2 = time.time()
@@ -758,19 +759,30 @@ def load_drug_set_descriptors_cylon(drug_set='Combined_PubChem', ncols=None, use
     dtype_dict = dict((x, np.float32) for x in df_cols.columns[1:])
     print(f"\t Dict Conv Time Time {time.time() - tm3} s")
     tm4 = time.time()
+    # from pyarrow import csv
+    # conv_ops = csv.ConvertOptions(null_values=['na', '-', ''], strings_can_be_null=True)
+    # ar_tb = csv.read_csv(path, convert_options=conv_ops)
     df = pd.read_csv(path, engine='c', sep='\t', usecols=usecols, dtype=dtype_dict,
                      na_values=['na', '-', ''])
+    df = Table.from_pandas(ctx, df)
+    #df = read_csv(ctx, path, csv_read_options)
     print(f"\t CSV Read with DType Cols Time {time.time() - tm4} s")
 
     tm5 = time.time()
     # TODO: fix default indexing issue in PyCylon
-    df1 = pd.DataFrame(df.loc[:, 'NAME'])
-    df1.rename(columns={'NAME': 'Drug'}, inplace=True)
+    #df1 = pd.DataFrame(df.loc[:, 'NAME'])
+    df1 = df.loc[:, 'NAME']
+    #df1.rename(columns={'NAME': 'Drug'}, inplace=True)
+    df1.rename({'NAME': 'Drug'})
 
-    df2 = df.drop('NAME', 1)
+    #df2 = df.drop('NAME', 1)
+    df2 = df.drop(['NAME'])
     if add_prefix:
         df2 = df2.add_prefix('dragon7.')
 
+    df1 = df1.to_pandas()
+    df2 = df2.to_pandas()
+    # TODO : avoid pandas conversion by adding impute_and_scale methods of scikit package
     df2 = impute_and_scale(df2, scaling, imputing, dropna=None)
 
     df = pd.concat([df1, df2], axis=1)
@@ -888,7 +900,9 @@ def load_cell_rnaseq(ncols=None, scaling='std', imputing='mean', add_prefix=True
         filename += ('_' + preprocess_rnaseq)  # 'source_scale' or 'combat'
 
     path = get_file(DATA_URL + filename)
-    df_cols = pd.read_csv(path, engine='c', sep='\t', nrows=0)
+    t_f = time.time()
+    df_cols = pd.read_csv(path, engine='c', sep='\t')
+    t_e = time.time()
     total = df_cols.shape[1] - 1  # remove Sample column
     if 'Cancer_type_id' in df_cols.columns:
         total -= 1
@@ -904,14 +918,17 @@ def load_cell_rnaseq(ncols=None, scaling='std', imputing='mean', add_prefix=True
         df_cols = df_cols.iloc[:, usecols]
 
     dtype_dict = dict((x, np.float32) for x in df_cols.columns[1:])
+    t2 = time.time()
     df = pd.read_csv(path, engine='c', sep='\t', usecols=usecols, dtype=dtype_dict)
     if 'Cancer_type_id' in df.columns:
         df.drop('Cancer_type_id', axis=1, inplace=True)
-
     prefixes = df['Sample'].str.extract('^([^.]*)', expand=False).rename('Source')
     sources = prefixes.drop_duplicates().reset_index(drop=True)
     df_source = pd.get_dummies(sources, prefix='rnaseq.source', prefix_sep='.')
     df_source = pd.concat([sources, df_source], axis=1)
+    t3 = time.time()
+
+    print(f"IM T1 {(t2-t1) - (t_e - t_f)} s, IM T2: {t3-t2} s")
 
     df1 = df['Sample']
     if embed_feature_source:
@@ -940,6 +957,99 @@ def load_cell_rnaseq(ncols=None, scaling='std', imputing='mean', add_prefix=True
     seperator_print()
     print(f"######> Filename: {filename}")
     print(f"load_cell_rnaseq : Time = {time.time() - t1} s")
+    seperator_print()
+    return df
+
+
+def load_cell_rnaseq_cylon(ncols=None, scaling='std', imputing='mean', add_prefix=True,
+                     use_landmark_genes=False, use_filtered_genes=False,
+                     feature_subset=None, preprocess_rnaseq=None,
+                     embed_feature_source=False, sample_set=None, index_by_sample=False):
+    t1 = time.time()
+    if use_landmark_genes:
+        filename = 'combined_rnaseq_data_lincs1000'
+    elif use_filtered_genes:
+        filename = 'combined_rnaseq_data_filtered'
+    else:
+        filename = 'combined_rnaseq_data'
+
+    if preprocess_rnaseq and preprocess_rnaseq != 'none':
+        scaling = None
+        filename += ('_' + preprocess_rnaseq)  # 'source_scale' or 'combat'
+
+    path = get_file(DATA_URL + filename)
+    #df_cols = pd.read_csv(path, engine='c', sep='\t', nrows=0)
+
+    csv_read_options = CSVReadOptions().use_threads(True).block_size(1 << 30).with_delimiter(
+        "\t")
+    t_f = time.time()
+    df_cols: Table = read_csv(ctx, path, csv_read_options)
+    t_e = time.time()
+    total = df_cols.shape[1] - 1  # remove Sample column
+    if 'Cancer_type_id' in df_cols.column_names:
+        total -= 1
+    usecols = None
+    if ncols and ncols < total:
+        usecols = np.random.choice(total, size=ncols, replace=False)
+        usecols = np.append([0], np.add(sorted(usecols), 2))
+        df_cols = df_cols.iloc[:, usecols.tolist()]
+    if feature_subset:
+        with_prefix = lambda x: 'rnaseq.' + x if add_prefix else x
+        usecols = [0] + [i for i, c in enumerate(df_cols.column_names) if
+                         with_prefix(c) in feature_subset]
+        df_cols = df_cols.iloc[:, usecols]
+
+    dtype_dict = dict((x, np.float32) for x in df_cols.column_names[1:])
+    t_1 = time.time()
+    print(f">> Initial Clean Up : {(t_1 - t1) - (t_e - t_f)} s")
+    df = pd.read_csv(path, engine='c', sep='\t', usecols=usecols, dtype=dtype_dict)
+
+    if 'Cancer_type_id' in df.columns:
+        print(">> drop : Cancer_type_id")
+        df.drop('Cancer_type_id', axis=1, inplace=True)
+
+    prefixes = df['Sample'].str.extract('^([^.]*)', expand=False).rename('Source')
+    prefixes = Table.from_pandas(ctx, pd.DataFrame(prefixes))
+    sources = prefixes.unique()
+    sources.reset_index()
+    sources = sources.drop(['index'])
+    sources = sources.to_pandas()
+    t_2 = time.time()
+    print(f">> Pandas Cylon Intermediate: {t_2 - t_1} s")
+    df_source = pd.get_dummies(sources, prefix='rnaseq.source', prefix_sep='.')
+    df_source = pd.concat([sources, df_source], axis=1)
+
+    df1 = df['Sample']
+    if embed_feature_source:
+        print(">> embed_feature_source")
+        df_sample_source = pd.concat([df1, prefixes], axis=1)
+        df1 = df_sample_source.merge(df_source, on='Source', how='left').drop('Source', axis=1)
+        logger.info('Embedding RNAseq data source into features: %d additional columns',
+                    df1.shape[1] - 1)
+
+    df2 = df.drop('Sample', 1)
+    if add_prefix:
+        print(">> add_prefix")
+        df2 = df2.add_prefix('rnaseq.')
+
+    df2 = impute_and_scale(df2, scaling, imputing)
+
+    df = pd.concat([df1, df2], axis=1)
+
+    # scaling needs to be done before subsampling
+    if sample_set:
+        print(">> sample_set")
+        chosen = df['Sample'].str.startswith(sample_set)
+        df = df[chosen].reset_index(drop=True)
+
+    if index_by_sample:
+        print(">> index_by_sample")
+        df = df.set_index('Sample')
+
+    logger.info('Loaded combined RNAseq data: %s', df.shape)
+    seperator_print()
+    print(f"######> Filename: {filename}")
+    print(f"load_cell_rnaseq_cylon : Time = {time.time() - t1} s")
     seperator_print()
     return df
 
@@ -1432,7 +1542,7 @@ class CombinedDataLoader(object):
         for fea in cell_features:
             fea = fea.lower()
             if fea == 'rnaseq' or fea == 'expression':
-                df_cell_rnaseq = load_cell_rnaseq(ncols=ncols, scaling=scaling,
+                df_cell_rnaseq = load_cell_rnaseq_cylon(ncols=ncols, scaling=scaling,
                                                   use_landmark_genes=use_landmark_genes,
                                                   use_filtered_genes=use_filtered_genes,
                                                   feature_subset=cell_feature_subset,

@@ -82,7 +82,7 @@ def get_rna_seq_df(data_root: str,
         # Download the raw file if not exist
         download_files(filenames=raw_data_filename,
                        target_folder=os.path.join(data_root, RAW_FOLDER))
-
+        print("cell_file: ", os.path.join(data_root, RAW_FOLDER, raw_data_filename))
         df = pd.read_csv(
             os.path.join(data_root, RAW_FOLDER, raw_data_filename),
             sep='\t',

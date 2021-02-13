@@ -76,13 +76,15 @@ def get_drug_resp_df(data_root: str,
         # Download the raw file if not exist
         download_files(filenames=DRUG_RESP_FILENAME,
                        target_folder=os.path.join(data_root, RAW_FOLDER))
-
+        print("File Path: ",os.path.join(data_root, RAW_FOLDER, DRUG_RESP_FILENAME))
         df = pd.read_csv(
             os.path.join(data_root, RAW_FOLDER, DRUG_RESP_FILENAME),
             sep='\t',
             header=0,
             index_col=None,
             usecols=[0, 1, 2, 4, 6, ])
+        
+        print("Column names: ", df.columns)
 
         # Delete '-', which could be inconsistent between seq and meta
         df['CELLNAME'] = df['CELLNAME'].str.replace('-', '')
@@ -220,8 +222,10 @@ def get_combo_stats_df(data_root: str,
                     np.mean(grth_tuple), corr]
 
         num_cores = multiprocessing.cpu_count()
+        print("Num cores : ", num_cores )
         combo_stats = Parallel(n_jobs=num_cores)(
-            delayed(process_combo)(v) for _, v in combo_dict.items())
+             delayed(process_combo)(v) for _, v in combo_dict.items())
+
 
         # Convert ths list of lists to dataframe
         cols = ['DRUG_ID', 'CELLNAME', 'NUM_REC', 'AVG_GRTH', 'CORR']
