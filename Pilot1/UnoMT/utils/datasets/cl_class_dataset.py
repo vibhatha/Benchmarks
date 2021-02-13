@@ -93,6 +93,8 @@ class CLClassDataset(data.Dataset):
         # Initialization ######################################################
         self.__data_root = data_root
 
+        print(">>> Data Root:: ", data_root)
+
         # Class-wise variables
         self.training = training
         self.__rand_state = rand_state

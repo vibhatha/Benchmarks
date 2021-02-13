@@ -9,7 +9,7 @@
                         Date: 3/12/19.
 
 """
-
+import multiprocessing
 import time
 
 import numpy as np
@@ -65,11 +65,11 @@ class UnoMTModel(object):
 
         # Data loaders for training/validation ####################################
         self.dataloader_kwargs = {
-            'timeout': 1,
+            'timeout': 0,
             'shuffle': 'True',
-            # 'num_workers': multiprocessing.cpu_count() if use_cuda else 0,
-            'num_workers': NUM_WORKER if self.use_cuda else 0,
-            'pin_memory': True if self.use_cuda else False, }
+            'num_workers': 0,#multiprocessing.cpu_count() if not self.use_cuda else 1,
+            #'num_workers': NUM_WORKER if self.use_cuda else 1,
+            'pin_memory': True if self.device == torch.device('cuda') else False, }
 
         # Drug response dataloaders for training/validation
         self.drug_resp_dataset_kwargs = {
