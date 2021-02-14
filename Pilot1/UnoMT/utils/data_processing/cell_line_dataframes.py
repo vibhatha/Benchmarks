@@ -17,6 +17,17 @@ from utils.data_processing.dataframe_scaling import scale_dataframe
 from utils.data_processing.label_encoding import encode_label_to_int
 from utils.miscellaneous.file_downloading import download_files
 
+# pycylon imports start
+
+from pycylon import Table
+from pycylon import CylonContext
+from pycylon.io import CSVReadOptions
+from pycylon.io import read_csv
+import time
+
+ctx = CylonContext(config=None, distributed=False)
+
+# pycylon imports end
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +67,7 @@ def get_rna_seq_df(data_root: str,
     Returns:
         pd.DataFrame: processed RNA sequence dataframe.
     """
+    t_start = time.time()
     print("========>>> get_rna_seq_df")
     df_filename = 'rnaseq_df(%s, scaling=%s).pkl' \
                   % (rnaseq_feature_usage, rnaseq_scaling)
@@ -86,21 +98,31 @@ def get_rna_seq_df(data_root: str,
         download_files(filenames=raw_data_filename,
                        target_folder=os.path.join(data_root, RAW_FOLDER))
         print("cell_file: ", os.path.join(data_root, RAW_FOLDER, raw_data_filename))
-        df = pd.read_csv(
-            os.path.join(data_root, RAW_FOLDER, raw_data_filename),
-            sep='\t',
-            header=0,
-            index_col=0)
+        # df = pd.read_csv(
+        #     os.path.join(data_root, RAW_FOLDER, raw_data_filename),
+        #     sep='\t',
+        #     header=0,
+        #     index_col=0)
 
+        csv_read_options = CSVReadOptions().use_threads(True).block_size(1 << 30).with_delimiter(
+            "\t")
+        t_s_load = time.time()
+        tb: Table = read_csv(ctx, os.path.join(data_root, RAW_FOLDER, raw_data_filename), csv_read_options)
+        t_e_load = time.time()
+        print(f"Cylon Shape Before Duplicate Removal: {tb.shape}")
+        tb = tb.unique([tb.column_names[0]], keep='first')
+        print(f"Cylon Shape After Duplicate Removal: {tb.shape}")
+        df = tb.to_pandas()
+        df = df.set_index(df.columns[0])
         # Delete '-', which could be inconsistent between seq and meta
         df.index = df.index.str.replace('-', '')
 
         # Note that after this name changing, some rows will have the same
         # name like 'GDSC.TT' and 'GDSC.T-T', but they are actually the same
         # Drop the duplicates for consistency
-        print(df.shape)
+        print(f"Pandas Shape Before Duplicate Removal: {df.shape}")
         df = df[~df.index.duplicated(keep='first')]
-        print(df.shape)
+        print(f"Pandas Shape After Duplicate Removal: {df.shape}")
 
         # Scaling the descriptor with given scaling method
         df = scale_dataframe(df, rnaseq_scaling)
@@ -113,10 +135,14 @@ def get_rna_seq_df(data_root: str,
             os.makedirs(os.path.join(data_root, PROC_FOLDER))
         except FileExistsError:
             pass
-        df.to_pickle(df_path)
+        # Commenting to avoid loading from cache
+        #df.to_pickle(df_path)
 
     # Convert the dtypes for a more efficient, compact dataframe ##############
     df = df.astype(float_dtype)
+    t_end = time.time()
+    print(f"Data Loading time : {t_e_load - t_s_load}")
+    print(f"Total time for get_rna_seq_df : {t_end - t_start} s")
     return df
 
 
@@ -140,6 +166,8 @@ def get_cl_meta_df(data_root: str,
     Returns:
         pd.DataFrame: processed cell line metadata dataframe.
     """
+    t_start = time.time()
+
     print("=" * 80)
     print("========>>> get_cl_meta_df")
     df_filename = 'cl_meta_df.pkl'
@@ -158,20 +186,33 @@ def get_cl_meta_df(data_root: str,
         # Download the raw file if not exist
         download_files(filenames=CL_METADATA_FILENAME,
                        target_folder=os.path.join(data_root, RAW_FOLDER))
-
-        df = pd.read_csv(
-            os.path.join(data_root, RAW_FOLDER, CL_METADATA_FILENAME),
-            sep='\t',
-            header=0,
-            index_col=0,
-            usecols=['sample_name',
+        use_cols = ['sample_name',
                      'dataset',
                      'simplified_tumor_site',
                      'simplified_tumor_type',
-                     'sample_category'],
-            dtype=str)
-
+                     'sample_category']
+        # t_s_load = time.time()
+        # df = pd.read_csv(
+        #     os.path.join(data_root, RAW_FOLDER, CL_METADATA_FILENAME),
+        #     sep='\t',
+        #     header=0,
+        #     index_col=0,
+        #     usecols=use_cols,
+        #     dtype=str)
+        # t_e_load = time.time()
+        #
+        csv_read_options = CSVReadOptions().use_threads(True).block_size(1 << 30).with_delimiter(
+            "\t")
+        t_s_load = time.time()
+        tb: Table = read_csv(ctx, os.path.join(data_root, RAW_FOLDER, CL_METADATA_FILENAME),
+                             csv_read_options)
+        tb = tb[use_cols]
+        t_e_load = time.time()
+        df = tb.to_pandas()
+        df = df.set_index(df.columns[0])
         # Renaming columns for shorter and better column names
+        print(f"DataFrame shape {df.shape}")
+        print(f"Data Loading time : {t_e_load - t_s_load}")
         df.index.names = ['sample']
         df.columns = ['data_src', 'site', 'type', 'category']
 
@@ -179,9 +220,9 @@ def get_cl_meta_df(data_root: str,
         print(df)
 
         # Delete '-', which could be inconsistent between seq and meta
-        print(df.shape)
+        print(f"Before replacing str: {df.shape}")
         df.index = df.index.str.replace('-', '')
-        print(df.shape)
+        print(f"After replacing str: {df.shape}")
 
         # Convert all the categorical data from text to numeric
         columns = df.columns
@@ -200,9 +241,12 @@ def get_cl_meta_df(data_root: str,
             print(f"Save Folder : {os.path.join(data_root, PROC_FOLDER)}" )
         except FileExistsError:
             pass
-        df.to_pickle(df_path)
+        # avoid loading from pickle to test cylon integration
+        #df.to_pickle(df_path)
 
     df = df.astype(int_dtype)
+    t_end = time.time()
+    print(f"Total time taken {get_cl_meta_df} : {t_end - t_start} s")
     print("=" * 80)
     return df
 

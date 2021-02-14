@@ -11,6 +11,7 @@ import errno
 import os
 import urllib
 import logging
+from urllib import request
 
 FTP_ROOT = 'http://ftp.mcs.anl.gov/pub/candle/public/' \
            'benchmarks/Pilot1/combo/'
@@ -56,7 +57,7 @@ def download_files(filenames: str or iter,
 
             url = ftp_root + filename
             try:
-                url_data = urllib.request.urlopen(url)
+                url_data = request.urlopen(url)
                 with open(file_path, 'wb') as f:
                     f.write(url_data.read())
             except IOError:
