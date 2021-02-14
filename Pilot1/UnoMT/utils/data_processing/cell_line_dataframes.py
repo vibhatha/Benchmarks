@@ -56,17 +56,20 @@ def get_rna_seq_df(data_root: str,
     Returns:
         pd.DataFrame: processed RNA sequence dataframe.
     """
-
+    print("========>>> get_rna_seq_df")
     df_filename = 'rnaseq_df(%s, scaling=%s).pkl' \
                   % (rnaseq_feature_usage, rnaseq_scaling)
     df_path = os.path.join(data_root, PROC_FOLDER, df_filename)
 
     # If the dataframe already exists, load and continue ######################
     if os.path.exists(df_path):
+        print("Reading From Pickle")
+        print(f"DF PATH: {df_path}/{df_filename}")
         df = pd.read_pickle(df_path)
 
     # Otherwise load from raw files, process it and save ######################
     else:
+        print("Loading from scratch...")
         logger.debug('Processing RNA sequence dataframe ... ')
 
         if rnaseq_feature_usage == 'source_scale':
@@ -137,16 +140,19 @@ def get_cl_meta_df(data_root: str,
     Returns:
         pd.DataFrame: processed cell line metadata dataframe.
     """
-
+    print("=" * 80)
+    print("========>>> get_cl_meta_df")
     df_filename = 'cl_meta_df.pkl'
     df_path = os.path.join(data_root, PROC_FOLDER, df_filename)
 
     # If the dataframe already exists, load and continue ######################
     if os.path.exists(df_path):
+        print(f"Reading from Path: {df_path}")
         df = pd.read_pickle(df_path)
 
     # Otherwise load from raw files, process it and save ######################
     else:
+        print("Loading from scratch...")
         logger.debug('Processing cell line meta dataframe ... ')
 
         # Download the raw file if not exist
@@ -169,6 +175,9 @@ def get_cl_meta_df(data_root: str,
         df.index.names = ['sample']
         df.columns = ['data_src', 'site', 'type', 'category']
 
+        print("Cell DataFrame: ")
+        print(df)
+
         # Delete '-', which could be inconsistent between seq and meta
         print(df.shape)
         df.index = df.index.str.replace('-', '')
@@ -188,11 +197,13 @@ def get_cl_meta_df(data_root: str,
         # save to disk for future usage
         try:
             os.makedirs(os.path.join(data_root, PROC_FOLDER))
+            print(f"Save Folder : {os.path.join(data_root, PROC_FOLDER)}" )
         except FileExistsError:
             pass
         df.to_pickle(df_path)
 
     df = df.astype(int_dtype)
+    print("=" * 80)
     return df
 
 

@@ -61,7 +61,7 @@ def get_drug_resp_df(data_root: str,
     Returns:
         pd.DataFrame: processed drug response dataframe.
     """
-
+    print("=" * 80)
     df_filename = 'drug_resp_df(scaling=%s).pkl' % grth_scaling
     df_path = os.path.join(data_root, PROC_FOLDER, df_filename)
 
@@ -113,6 +113,7 @@ def get_drug_resp_df(data_root: str,
     df[['SOURCE']] = df[['SOURCE']].astype(int_dtype)
     df[['LOG_CONCENTRATION', 'GROWTH']] = \
         df[['LOG_CONCENTRATION', 'GROWTH']].astype(float_dtype)
+    print("=" * 80)
     return df
 
 
@@ -143,7 +144,7 @@ def get_combo_stats_df(data_root: str,
             contains the following fields: ['DRUG_ID', 'CELLNAME','NUM_REC',
             'AVG_GRTH', 'CORR'].
     """
-
+    print("=" * 80)
     df_filename = 'combo_stats_df(scaling=%s).pkl' % grth_scaling
     df_path = os.path.join(data_root, PROC_FOLDER, df_filename)
 
@@ -247,6 +248,7 @@ def get_combo_stats_df(data_root: str,
     # Convert the dtypes for a more efficient, compact dataframe ##############
     df[['NUM_REC']] = df[['NUM_REC']].astype(int_dtype)
     df[['AVG_GRTH', 'CORR']] = df[['AVG_GRTH', 'CORR']].astype(float_dtype)
+    print("=" * 80)
     return df
 
 
@@ -278,7 +280,7 @@ def get_drug_stats_df(data_root: str,
             contains the following fields: ['DRUG_ID', 'NUM_CL', 'NUM_REC',
             'AVG_GRTH', 'AVG_CORR']
     """
-
+    print("=" * 80)
     if int_dtype == np.int8:
         logger.warning('Integer length too smaller for drug statistics.')
 
@@ -363,6 +365,7 @@ def get_drug_stats_df(data_root: str,
     df[['NUM_CL', 'NUM_REC']] = df[['NUM_CL', 'NUM_REC']].astype(int_dtype)
     df[['AVG_GRTH', 'AVG_CORR']] = \
         df[['AVG_GRTH', 'AVG_CORR']].astype(float_dtype)
+    print("=" * 80)
     return df
 
 
@@ -389,16 +392,22 @@ def get_drug_anlys_df(data_root: str):
             contains the following fields: ['HIGH_GROWTH', 'HIGH_CORR'],
             which are boolean features.
     """
-
+    print("=" * 80)
+    print("get_drug_anlys_df")
     df_filename = 'drug_anlys_df.pkl'
     df_path = os.path.join(data_root, PROC_FOLDER, df_filename)
 
+    print(f"df_filename: {df_filename}")
+    print(f"df_path: {df_path}")
+
     # If the dataframe already exists, load and return ########################
     if os.path.exists(df_path):
+        print("Reading from pickle")
         return pd.read_pickle(df_path)
 
     # Otherwise process combo statistics and save #############################
     else:
+        print("Reading from scratch")
         logger.debug('Processing drug analysis dataframe ... ')
 
         # Load drug statistics dataframe
@@ -408,7 +417,13 @@ def get_drug_anlys_df(data_root: str):
                                           int_dtype=int,
                                           float_dtype=float)
 
+        print(f"DataFrame: {drug_stats_df.shape}")
+
         drugs = drug_stats_df.index
+
+        print("Index: ")
+        print(drugs)
+
         avg_grth = drug_stats_df['AVG_GRTH'].values
         avg_corr = drug_stats_df['AVG_CORR'].values
 
@@ -424,13 +439,18 @@ def get_drug_anlys_df(data_root: str):
                           columns=['DRUG_ID', 'HIGH_GROWTH', 'HIGH_CORR'])
         df.set_index('DRUG_ID', inplace=True)
 
+        print(f"drug_analysis_array: {drug_analysis_array.shape}")
+        print(drug_analysis_array)
+        print("Index")
+        print(df.set_index)
+
         # save to disk for future usage
         try:
             os.makedirs(os.path.join(data_root, PROC_FOLDER))
         except FileExistsError:
             pass
         df.to_pickle(df_path)
-
+        print("=" * 80)
         return df
 
 

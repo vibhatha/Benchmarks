@@ -31,6 +31,8 @@ def scale_dataframe(dataframe: pd.DataFrame,
     Returns:
         pandas.Dataframe: scaled dataframe.
     """
+    print("=" * 80)
+    print("scale_dataframe")
     scaling_method = scaling_method.lower()
 
     if scaling_method.lower() == 'none':
@@ -48,5 +50,5 @@ def scale_dataframe(dataframe: pd.DataFrame,
         dataframe = scaler.fit_transform(dataframe.values.reshape(-1, 1))
     else:
         dataframe[:] = scaler.fit_transform(dataframe[:])
-
+    print("=" * 80)
     return dataframe

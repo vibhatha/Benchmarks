@@ -53,13 +53,20 @@ def get_drug_fgpt_df(data_root: str,
     Returns:
         pd.DataFrame: processed drug fingerprint dataframe.
     """
-
+    print("=" * 80)
+    print("get_drug_fgpt_df")
     df_filename = 'drug_fgpt_df.pkl'
     df_path = os.path.join(data_root, PROC_FOLDER, df_filename)
+
+    print(f">> df_filename : {df_filename}")
 
     # If the dataframe already exists, load and continue ######################
     if os.path.exists(df_path):
         df = pd.read_pickle(df_path)
+        print(f"Reading from pickle : {df_path}")
+        print("DataFrame:>>>")
+        print(df)
+        print(df.index)
 
     # Otherwise load from raw files, process it and save ######################
     else:
@@ -76,6 +83,9 @@ def get_drug_fgpt_df(data_root: str,
             index_col=0,
             skiprows=[0, ])
 
+        print(f"DataFrame: ecfp_df = {ecfp_df.shape}")
+        print(ecfp_df)
+
         pfp_df = pd.read_csv(
             os.path.join(data_root, RAW_FOLDER, PFP_FILENAME),
             sep='\t',
@@ -83,20 +93,30 @@ def get_drug_fgpt_df(data_root: str,
             index_col=0,
             skiprows=[0, ])
 
+        print(f"DataFrame: pfp_df = {pfp_df.shape}")
+        print(pfp_df)
+
         df = pd.concat([ecfp_df, pfp_df], axis=1, join='inner')
+
+        print(f"Concatenated Pdf : {df.shape}")
+        print(df)
 
         # Convert data type into generic python types
         df = df.astype(int)
 
+        print(f"DataFrame Types: {df.dtypes}")
+
         # save to disk for future usage
         try:
             os.makedirs(os.path.join(data_root, PROC_FOLDER))
+            print(f"Save Path : {os.path.join(data_root, PROC_FOLDER)}")
         except FileExistsError:
             pass
         df.to_pickle(df_path)
 
     # Convert the dtypes for a more efficient, compact dataframe ##############
     df = df.astype(int_dtype)
+    print("=" * 80)
     return df
 
 
@@ -125,17 +145,22 @@ def get_drug_dscptr_df(data_root: str,
     Returns:
         pd.DataFrame: processed drug descriptor dataframe.
     """
-
+    print("=" * 80)
+    print("get_drug_dscptr_df")
     df_filename = 'drug_dscptr_df(scaling=%s, nan_thresh=%.2f).pkl' \
                   % (dscptr_scaling, dscptr_nan_thresh)
     df_path = os.path.join(data_root, PROC_FOLDER, df_filename)
+    print(f"File Name: {df_filename}")
+    print(f"Df Path: {df_path}")
 
     # If the dataframe already exists, load and continue ######################
     if os.path.exists(df_path):
+        print(f"Reading from pickle {df_path}")
         df = pd.read_pickle(df_path)
 
     # Otherwise load from raw files, process it and save ######################
     else:
+        print("Reading from scratch")
         logger.debug('Processing drug descriptor dataframe ... ')
 
         # Download the raw file if not exist
@@ -148,6 +173,11 @@ def get_drug_dscptr_df(data_root: str,
             header=0,
             index_col=0,
             na_values='na')
+
+        print(f"DataFrame : {df.shape}")
+        print(df)
+        print("DataFrame Index: ")
+        print(df.index)
 
         # Drop NaN values if the percentage of NaN exceeds nan_threshold
         # Note that columns (features) are dropped first, and then rows (drugs)
@@ -174,6 +204,7 @@ def get_drug_dscptr_df(data_root: str,
 
     # Convert the dtypes for a more efficient, compact dataframe ##############
     df = df.astype(float_dtype)
+    print("=" * 80)
     return df
 
 
@@ -203,9 +234,12 @@ def get_drug_feature_df(data_root: str,
     Returns:
         pd.DataFrame: processed drug feature dataframe.
     """
-
+    print("=" * 80)
+    print("get_drug_feature_df")
     # Return the corresponding drug feature dataframe
     if drug_feature_usage == 'both':
+        print(f"drug_feature_usage: {drug_feature_usage}")
+        print("=" * 80)
         return pd.concat(
             [get_drug_fgpt_df(data_root=data_root,
                               int_dtype=int_dtype),
@@ -215,14 +249,17 @@ def get_drug_feature_df(data_root: str,
                                 float_dtype=float_dtype)],
             axis=1, join='inner')
     elif drug_feature_usage == 'fingerprint':
+        print(f"drug_feature_usage: {drug_feature_usage}")
         return get_drug_fgpt_df(data_root=data_root,
                                 int_dtype=int_dtype)
     elif drug_feature_usage == 'descriptor':
+        print(f"drug_feature_usage: {drug_feature_usage}")
         return get_drug_dscptr_df(data_root=data_root,
                                   dscptr_scaling=dscptr_scaling,
                                   dscptr_nan_thresh=dscptr_nan_thresh,
                                   float_dtype=float_dtype)
     else:
+        print(f"drug_feature_usage: {drug_feature_usage}")
         logger.error('Drug feature must be one of \'fingerprint\', '
                      '\'descriptor\', or \'both\'.', exc_info=True)
         raise ValueError('Undefined drug feature %s.' % drug_feature_usage)
@@ -243,19 +280,25 @@ def get_drug_prop_df(data_root: str):
     Returns:
         pd.DataFrame: drug property dataframe with target families and QED.
     """
-
+    print("=" * 80)
     df_filename = 'drug_prop_df.pkl'
     df_path = os.path.join(data_root, PROC_FOLDER, df_filename)
 
+    print(f"DataFrame File : {df_filename}")
+    print(f"DF Path : {df_path}")
+
     # If the dataframe already exists, load and continue ######################
     if os.path.exists(df_path):
+        print(f"Reading from pickle: {df_path}")
         df = pd.read_pickle(df_path)
 
     # Otherwise load from raw files, process it and save ######################
     else:
+        print("Reading from scratch")
         logger.debug('Processing drug targets dataframe ... ')
 
         raw_file_path = os.path.join(data_root, RAW_FOLDER, DRUG_PROP_FILENAME)
+        print(f"raw_file_path : {raw_file_path}")
 
         # Download the raw file if not exist
         download_files(filenames=DRUG_PROP_FILENAME,
@@ -268,9 +311,16 @@ def get_drug_prop_df(data_root: str):
             index_col=0,
             usecols=['anl_cpd_id', 'qed_weighted', 'target_families', ])
 
+        print(f"DataFrame : {df.shape}")
+        print("Index: ")
+        print(df.index)
+
         # Change index name for consistency across the whole program
         df.index.names = ['DRUG_ID']
         df.columns = ['QED', 'TARGET', ]
+
+        print(f"df index names: {df.index.names}")
+        print(f"df.columns: {df.columns}")
 
         # Convert data type into generic python types
         df[['QED']] = df[['QED']].astype(float)
@@ -282,7 +332,7 @@ def get_drug_prop_df(data_root: str):
         except FileExistsError:
             pass
         df.to_pickle(df_path)
-
+    print("=" * 80)
     return df
 
 
@@ -304,7 +354,8 @@ def get_drug_target_df(data_root: str,
     Returns:
         pd.DataFrame: drug target families dataframe.
     """
-
+    print("=" * 80)
+    print("get_drug_target_df")
     df = get_drug_prop_df(data_root=data_root)[['TARGET']]
 
     # Only take the rows with specific target families for classification
@@ -317,6 +368,7 @@ def get_drug_target_df(data_root: str,
 
     # Convert the dtypes for a more efficient, compact dataframe
     # Note that it is safe to use int8 here for there are only 10 classes
+    print("=" * 80)
     return df.astype(int_dtype)
 
 
@@ -341,7 +393,8 @@ def get_drug_qed_df(data_root: str,
     Returns:
         pd.DataFrame: drug weighted QED dataframe.
     """
-
+    print("=" * 80)
+    print("get_drug_qed_df")
     df = get_drug_prop_df(data_root=data_root)[['QED']]
 
     # Drop all the NaN values before scaling
@@ -352,6 +405,7 @@ def get_drug_qed_df(data_root: str,
     df = scale_dataframe(df, qed_scaling)
 
     # Convert the dtypes for a more efficient, compact dataframe
+    print("=" * 80)
     return df.astype(float_dtype)
 
 
