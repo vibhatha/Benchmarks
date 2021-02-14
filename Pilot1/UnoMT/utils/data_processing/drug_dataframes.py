@@ -16,6 +16,22 @@ from utils.data_processing.dataframe_scaling import scale_dataframe
 from utils.data_processing.label_encoding import encode_label_to_int
 from utils.miscellaneous.file_downloading import download_files
 
+# pycylon imports start
+
+from pycylon import Table
+from pycylon import CylonContext
+from pycylon.io import CSVReadOptions
+from pycylon.io import read_csv
+import pyarrow as pa
+from pyarrow import csv
+from pyarrow.csv import ReadOptions
+from pyarrow.csv import ConvertOptions
+from pyarrow.csv import ParseOptions
+import time
+
+ctx = CylonContext(config=None, distributed=False)
+
+# pycylon imports end
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +70,7 @@ def get_drug_fgpt_df(data_root: str,
         pd.DataFrame: processed drug fingerprint dataframe.
     """
     print("=" * 80)
+    t_start = time.time()
     print("get_drug_fgpt_df")
     df_filename = 'drug_fgpt_df.pkl'
     df_path = os.path.join(data_root, PROC_FOLDER, df_filename)
@@ -75,25 +92,29 @@ def get_drug_fgpt_df(data_root: str,
         # Download the raw file if not exist
         download_files(filenames=[ECFP_FILENAME, PFP_FILENAME],
                        target_folder=os.path.join(data_root, RAW_FOLDER))
-
+        t_s_1_load = time.time()
         ecfp_df = pd.read_csv(
             os.path.join(data_root, RAW_FOLDER, ECFP_FILENAME),
             sep='\t',
             header=None,
             index_col=0,
             skiprows=[0, ])
+        t_e_1_load = time.time()
 
         print(f"DataFrame: ecfp_df = {ecfp_df.shape}")
+        print(f"Data Loadding ecfp_df: {t_e_1_load - t_s_1_load} s")
         print(ecfp_df)
 
+        t_s_2_load = time.time()
         pfp_df = pd.read_csv(
             os.path.join(data_root, RAW_FOLDER, PFP_FILENAME),
             sep='\t',
             header=None,
             index_col=0,
             skiprows=[0, ])
-
+        t_e_2_load = time.time()
         print(f"DataFrame: pfp_df = {pfp_df.shape}")
+        print(f"Data Loadding pfp_df: {t_e_2_load - t_s_2_load} s")
         print(pfp_df)
 
         df = pd.concat([ecfp_df, pfp_df], axis=1, join='inner')
@@ -112,10 +133,13 @@ def get_drug_fgpt_df(data_root: str,
             print(f"Save Path : {os.path.join(data_root, PROC_FOLDER)}")
         except FileExistsError:
             pass
-        df.to_pickle(df_path)
+        # avoid saving to pickle to run the whole data processing step
+        #df.to_pickle(df_path)
 
     # Convert the dtypes for a more efficient, compact dataframe ##############
     df = df.astype(int_dtype)
+    t_end = time.time()
+    print(f"Total time taken get_drug_fgpt_df : {t_end - t_start} s")
     print("=" * 80)
     return df
 
@@ -146,6 +170,7 @@ def get_drug_dscptr_df(data_root: str,
         pd.DataFrame: processed drug descriptor dataframe.
     """
     print("=" * 80)
+    t_start = time.time()
     print("get_drug_dscptr_df")
     df_filename = 'drug_dscptr_df(scaling=%s, nan_thresh=%.2f).pkl' \
                   % (dscptr_scaling, dscptr_nan_thresh)
@@ -166,14 +191,23 @@ def get_drug_dscptr_df(data_root: str,
         # Download the raw file if not exist
         download_files(filenames=DSCPTR_FILENAME,
                        target_folder=os.path.join(data_root, RAW_FOLDER))
-
+        print(f"Data File path: {os.path.join(data_root, RAW_FOLDER, DSCPTR_FILENAME)}")
+        t_s_load = time.time()
         df = pd.read_csv(
             os.path.join(data_root, RAW_FOLDER, DSCPTR_FILENAME),
             sep='\t',
             header=0,
             index_col=0,
             na_values='na')
+        t_e_load = time.time()
 
+        #print(artb)
+
+        tb: Table = Table.from_pandas(ctx, df)
+        print(f"Table shape : {tb.shape}")
+        print(tb.shape)
+
+        print(f"Data Loading time : {t_e_load - t_s_load} s")
         print(f"DataFrame : {df.shape}")
         print(df)
         print("DataFrame Index: ")
@@ -182,12 +216,18 @@ def get_drug_dscptr_df(data_root: str,
         # Drop NaN values if the percentage of NaN exceeds nan_threshold
         # Note that columns (features) are dropped first, and then rows (drugs)
         valid_thresh = 1.0 - dscptr_nan_thresh
+        #df.dropna(axis=1, inplace=True, thresh=int(df.shape[0] * valid_thresh))
+        tb.dropna(axis=0, inplace=True)
+        #df.dropna(axis=0, inplace=True, thresh=int(df.shape[1] * valid_thresh))
+        tb.dropna(axis=1, inplace=True)
 
-        df.dropna(axis=1, inplace=True, thresh=int(df.shape[0] * valid_thresh))
-        df.dropna(axis=0, inplace=True, thresh=int(df.shape[1] * valid_thresh))
+
 
         # Fill the rest of NaN with column means
-        df.fillna(df.mean(), inplace=True)
+        #df.fillna(df.mean(), inplace=True)
+        # TODO: fix this to work with list of values or a table with one row
+        tb = tb.fillna(np.mean(df.mean()))
+        df = tb.to_pandas()
 
         # Scaling the descriptor with given scaling method
         df = scale_dataframe(df, dscptr_scaling)
@@ -200,10 +240,12 @@ def get_drug_dscptr_df(data_root: str,
             os.makedirs(os.path.join(data_root, PROC_FOLDER))
         except FileExistsError:
             pass
-        df.to_pickle(df_path)
+        #df.to_pickle(df_path)
 
     # Convert the dtypes for a more efficient, compact dataframe ##############
     df = df.astype(float_dtype)
+    t_end = time.time()
+    print(f"Total Time taken get_drug_dscptr_df: {t_end - t_start} s")
     print("=" * 80)
     return df
 
@@ -331,7 +373,7 @@ def get_drug_prop_df(data_root: str):
             os.makedirs(os.path.join(data_root, PROC_FOLDER))
         except FileExistsError:
             pass
-        df.to_pickle(df_path)
+        #df.to_pickle(df_path)
     print("=" * 80)
     return df
 
@@ -357,9 +399,15 @@ def get_drug_target_df(data_root: str,
     print("=" * 80)
     print("get_drug_target_df")
     df = get_drug_prop_df(data_root=data_root)[['TARGET']]
+    tb = Table.from_pandas(ctx, df)
 
     # Only take the rows with specific target families for classification
     df = df[df['TARGET'].isin(TGT_FAMS)][['TARGET']]
+    #tb = tb[tb['TARGET'].isin(TGT_FAMS)][['TARGET']]
+
+    #print(f"Check IsIn {df.shape}, {tb.shape}")
+    #df = tb.to_pandas()
+    #assert df.values.flatten().tolist() == tb.to_pandas().values.flatten().tolist()
 
     # Encode str formatted target families into integers
     df['TARGET'] = encode_label_to_int(data_root=data_root,
@@ -396,12 +444,16 @@ def get_drug_qed_df(data_root: str,
     print("=" * 80)
     print("get_drug_qed_df")
     df = get_drug_prop_df(data_root=data_root)[['QED']]
-
+    tb = Table.from_pandas(ctx, df)
+    print(f">>> Table Shape Before Dropna {tb.shape} , {df.shape}")
     # Drop all the NaN values before scaling
     df.dropna(axis=0, inplace=True)
+    #tb.dropna(axis=1, inplace=True) # TODO:: issue handle
+    print(f">>> get_drug_qed_df.DropNa : {df.shape} , {tb.shape}")
 
     # Note that weighted QED is by default already in the range of [0, 1]
     # Scaling the weighted QED with given scaling method
+    #df = tb.to_pandas()
     df = scale_dataframe(df, qed_scaling)
 
     # Convert the dtypes for a more efficient, compact dataframe
