@@ -25,6 +25,22 @@ from utils.data_processing.dataframe_scaling import scale_dataframe
 from utils.data_processing.label_encoding import encode_label_to_int
 from utils.miscellaneous.file_downloading import download_files
 
+# pycylon imports start
+
+from pycylon import Table
+from pycylon import CylonContext
+from pycylon.io import CSVReadOptions
+from pycylon.io import read_csv
+import pyarrow as pa
+from pyarrow import csv
+from pyarrow.csv import ReadOptions
+from pyarrow.csv import ConvertOptions
+from pyarrow.csv import ParseOptions
+import time
+
+ctx = CylonContext(config=None, distributed=False)
+
+# pycylon imports end
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +78,7 @@ def get_drug_resp_df(data_root: str,
         pd.DataFrame: processed drug response dataframe.
     """
     print("=" * 80)
+    print("*********** get_drug_resp_df ***********")
     df_filename = 'drug_resp_df(scaling=%s).pkl' % grth_scaling
     df_path = os.path.join(data_root, PROC_FOLDER, df_filename)
 
@@ -71,24 +88,36 @@ def get_drug_resp_df(data_root: str,
 
     # Otherwise load from raw files, process it and save ######################
     else:
-        logger.debug('Processing drug response dataframe ... ')
+        print("Reading from scratch...")
+        logger.debug('Processing drug response dataframe ...')
 
         # Download the raw file if not exist
         download_files(filenames=DRUG_RESP_FILENAME,
                        target_folder=os.path.join(data_root, RAW_FOLDER))
-        print("File Path: ",os.path.join(data_root, RAW_FOLDER, DRUG_RESP_FILENAME))
-        df = pd.read_csv(
-            os.path.join(data_root, RAW_FOLDER, DRUG_RESP_FILENAME),
-            sep='\t',
-            header=0,
-            index_col=None,
-            usecols=[0, 1, 2, 4, 6, ])
-        
-        print("Column names: ", df.columns)
+        print("File Path: ", os.path.join(data_root, RAW_FOLDER, DRUG_RESP_FILENAME))
+        t_s_load = time.time()
+        # df = pd.read_csv(
+        #     os.path.join(data_root, RAW_FOLDER, DRUG_RESP_FILENAME),
+        #     sep='\t',
+        #     header=0,
+        #     index_col=None,
+        #     usecols=[0, 1, 2, 4, 6, ])
+        csv_read_options = CSVReadOptions().use_threads(True).block_size(1 << 30).with_delimiter(
+            "\t")
+        tb: Table = read_csv(ctx, os.path.join(data_root, RAW_FOLDER, DRUG_RESP_FILENAME),
+                             csv_read_options)
+        tb = tb[['SOURCE', 'DRUG_ID', 'CELLNAME', 'LOG_CONCENTRATION', 'GROWTH']]
+        t_e_load = time.time()
+
+        print(f" Data Loading Time : {t_e_load - t_s_load} s")
+        print(f" DataFrame shape {tb.shape}")
+        print("Column names: ", tb.column_names)
 
         # Delete '-', which could be inconsistent between seq and meta
-        df['CELLNAME'] = df['CELLNAME'].str.replace('-', '')
+        #df['CELLNAME'] = df['CELLNAME'].str.replace('-', '')
+        tb['CELLNAME'] = tb['CELLNAME'].applymap(lambda x: x.replace('-', ''))
 
+        df = tb.to_pandas()
         # Encode data sources into numeric
         df['SOURCE'] = encode_label_to_int(data_root=data_root,
                                            dict_name='data_src_dict.txt',
@@ -107,7 +136,7 @@ def get_drug_resp_df(data_root: str,
             os.makedirs(os.path.join(data_root, PROC_FOLDER))
         except FileExistsError:
             pass
-        df.to_pickle(df_path)
+        #df.to_pickle(df_path)
 
     # Convert the dtypes for a more efficient, compact dataframe ##############
     df[['SOURCE']] = df[['SOURCE']].astype(int_dtype)
@@ -243,7 +272,7 @@ def get_combo_stats_df(data_root: str,
             os.makedirs(os.path.join(data_root, PROC_FOLDER))
         except FileExistsError:
             pass
-        df.to_pickle(df_path)
+        #df.to_pickle(df_path)
 
     # Convert the dtypes for a more efficient, compact dataframe ##############
     df[['NUM_REC']] = df[['NUM_REC']].astype(int_dtype)
@@ -359,7 +388,7 @@ def get_drug_stats_df(data_root: str,
             os.makedirs(os.path.join(data_root, PROC_FOLDER))
         except FileExistsError:
             pass
-        df.to_pickle(df_path)
+        #df.to_pickle(df_path)
 
     # Convert the dtypes for a more efficient, compact dataframe ##############
     df[['NUM_CL', 'NUM_REC']] = df[['NUM_CL', 'NUM_REC']].astype(int_dtype)
@@ -449,7 +478,7 @@ def get_drug_anlys_df(data_root: str):
             os.makedirs(os.path.join(data_root, PROC_FOLDER))
         except FileExistsError:
             pass
-        df.to_pickle(df_path)
+        #df.to_pickle(df_path)
         print("=" * 80)
         return df
 
