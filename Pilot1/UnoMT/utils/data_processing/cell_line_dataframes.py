@@ -99,22 +99,22 @@ def get_rna_seq_df(data_root: str,
                        target_folder=os.path.join(data_root, RAW_FOLDER))
         print("cell_file: ", os.path.join(data_root, RAW_FOLDER, raw_data_filename))
         t_s_load = time.time()
-        df = pd.read_csv(
-            os.path.join(data_root, RAW_FOLDER, raw_data_filename),
-            sep='\t',
-            header=0,
-            index_col=0)
+        # df = pd.read_csv(
+        #     os.path.join(data_root, RAW_FOLDER, raw_data_filename),
+        #     sep='\t',
+        #     header=0,
+        #     index_col=0)
+        #t_e_load = time.time()
+        csv_read_options = CSVReadOptions().use_threads(True).block_size(1 << 30).with_delimiter(
+            "\t")
+
+        tb: Table = read_csv(ctx, os.path.join(data_root, RAW_FOLDER, raw_data_filename), csv_read_options)
         t_e_load = time.time()
-        # csv_read_options = CSVReadOptions().use_threads(True).block_size(1 << 30).with_delimiter(
-        #     "\t")
-        #
-        # tb: Table = read_csv(ctx, os.path.join(data_root, RAW_FOLDER, raw_data_filename), csv_read_options)
-        #
-        # print(f"Cylon Shape Before Duplicate Removal: {tb.shape}")
-        # tb = tb.unique([tb.column_names[0]], keep='first')
-        # print(f"Cylon Shape After Duplicate Removal: {tb.shape}")
-        # df = tb.to_pandas()
-        # df = df.set_index(df.columns[0])
+        print(f"Cylon Shape Before Duplicate Removal: {tb.shape}")
+        tb = tb.unique([tb.column_names[0]], keep='first')
+        print(f"Cylon Shape After Duplicate Removal: {tb.shape}")
+        df = tb.to_pandas()
+        df = df.set_index(df.columns[0])
         # # Delete '-', which could be inconsistent between seq and meta
         df.index = df.index.str.replace('-', '')
 
