@@ -84,6 +84,7 @@ def get_drug_resp_df(data_root: str,
 
     # If the dataframe already exists, load and continue ######################
     if os.path.exists(df_path):
+        print(f"Loading from Pickle {df_path}")
         df = pd.read_pickle(df_path)
 
     # Otherwise load from raw files, process it and save ######################

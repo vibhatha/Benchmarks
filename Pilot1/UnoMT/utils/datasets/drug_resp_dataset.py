@@ -22,6 +22,17 @@ from utils.data_processing.response_dataframes import get_drug_resp_df, \
 
 logger = logging.getLogger(__name__)
 
+# pycylon imports start
+
+from pycylon import Table
+from pycylon import CylonContext
+from pycylon.io import CSVReadOptions
+from pycylon.io import read_csv
+import time
+
+ctx = CylonContext(config=None, distributed=False)
+
+# pycylon imports end
 
 class DrugRespDataset(data.Dataset):
     """Dataset class for drug response learning.
@@ -122,6 +133,8 @@ class DrugRespDataset(data.Dataset):
         """
 
         # Initialization ######################################################
+        print("=" * 80)
+        print("-----DrugRespDataset----")
         self.__data_root = data_root
 
         # Class-wise variables
@@ -167,9 +180,19 @@ class DrugRespDataset(data.Dataset):
             float_dtype=float_dtype)
 
         # Train/validation split ##############################################
+        print(f"Loaded Drug Resp DF Original Amount : {self.__drug_resp_df.shape}")
+
         self.__split_drug_resp()
 
         # Public attributes ###################################################
+        print(f"Drugs Original Amount : {self.__drug_resp_df.shape}")
+        #tb_drugs = Table.from_pandas(ctx, self.__drug_resp_df)
+        #tb_drugs_unique = tb_drugs['DRUG_ID'].unique()
+        #tb_cells_unique = tb_drugs['CELLNAME'].unique()
+
+        #tb_drugs_unique_list = list(tb_drugs_unique.to_pydict().items())[0][1]
+        #tb_cells_unique_list = list(tb_cells_unique.to_pydict().items())[0][1]
+
         self.drugs = self.__drug_resp_df['DRUG_ID'].unique().tolist()
         self.cells = self.__drug_resp_df['CELLNAME'].unique().tolist()
         self.num_records = len(self.__drug_resp_df)
@@ -201,6 +224,7 @@ class DrugRespDataset(data.Dataset):
             print('\t%i Unique Cell Lines (feature dim: %4i).'
                   % (len(self.cells), self.rnaseq_dim))
             print('=' * 80)
+        print("=" * 80)
 
     def __len__(self):
         return self.num_records
@@ -253,8 +277,11 @@ class DrugRespDataset(data.Dataset):
 
         # Encode the data source and take the data from target source only
         # Note that source could be 'NCI60', 'GDSC', etc. and 'all'
+        print("=" * 80)
+        print("__trim_dataframes")
+        print("")
         if self.data_source.lower() != 'all':
-
+            print("self.data_source.lower() != 'all'")
             logger.debug('Specifying data source %s ... ' % self.data_source)
 
             data_src_dict = get_label_dict(data_root=self.__data_root,
@@ -264,28 +291,40 @@ class DrugRespDataset(data.Dataset):
             # Reduce/trim the drug response dataframe
             self.__drug_resp_df = self.__drug_resp_df.loc[
                 self.__drug_resp_df['SOURCE'] == encoded_data_src]
+            print(f"self.__drug_resp_df.shape : {self.__drug_resp_df.shape}")
 
         # Make sure that all three dataframes share the same drugs/cells
         logger.debug('Trimming dataframes on common cell lines and drugs ... ')
+        print(">>>> Shape of Overlapping cell name and index values")
+        # print(f"Overlapping Shapes {len(self.__rnaseq_df.index.values)}, "
+        #       f"{self.__drug_resp_df['CELLNAME'].unique().shape}")
+        print(f"Index values : {self.__rnaseq_df.index.values}")
+        #print(f"Drug response unique: {self.__drug_resp_df['CELLNAME'].unique()}")
+        print(self.__drug_resp_df)
 
         cell_set = set(self.__drug_resp_df['CELLNAME'].unique()) \
             & set(self.__rnaseq_df.index.values)
         drug_set = set(self.__drug_resp_df['DRUG_ID'].unique()) \
             & set(self.__drug_feature_df.index.values)
+        print(f"a: self.__drug_resp_df.shape : {self.__drug_resp_df.shape}")
+        print(f">> cell_set {len(cell_set)}")
+        print(f">> drug_set {len(drug_set)}")
+        print(f">> drug_set_index {len(self.__drug_feature_df.index.values)}")
 
         self.__drug_resp_df = self.__drug_resp_df.loc[
             (self.__drug_resp_df['CELLNAME'].isin(cell_set)) &
             (self.__drug_resp_df['DRUG_ID'].isin(drug_set))]
-
+        print(f"b: self.__drug_resp_df.shape : {self.__drug_resp_df.shape}")
         self.__rnaseq_df = self.__rnaseq_df[
             self.__rnaseq_df.index.isin(cell_set)]
         self.__drug_feature_df = self.__drug_feature_df[
             self.__drug_feature_df.index.isin(drug_set)]
-
+        print(f"c: self.__drug_resp_df.shape : {self.__drug_resp_df.shape}")
         logger.debug('There are %i drugs and %i cell lines, with %i response '
                      'records after trimming.'
                      % (len(drug_set), len(cell_set),
                         len(self.__drug_resp_df)))
+        print("=" * 80)
         return
 
     def __split_drug_resp(self):
@@ -319,11 +358,17 @@ class DrugRespDataset(data.Dataset):
         # Trim dataframes based on data source and common drugs/cells
         # Now drug response dataframe contains training + validation
         # data samples from the same data source, like 'NCI60'
+        print("=" * 80)
+        print("__split_drug_resp")
         self.__trim_dataframes()
 
         # Get lists of all drugs & cells corresponding from data source
+        print(f"cell_list : {self.__drug_resp_df.shape}")
         cell_list = self.__drug_resp_df['CELLNAME'].unique().tolist()
         drug_list = self.__drug_resp_df['DRUG_ID'].unique().tolist()
+
+        print(f"cell_list : {len(cell_list)}")
+        print(f"drug_list : {len(drug_list)}")
 
         # Create an array to store all drugs' analysis results
         drug_anlys_dict = {idx: row.values for idx, row in
@@ -457,7 +502,7 @@ class DrugRespDataset(data.Dataset):
         # Keep only training_drug_resp_df or validation_drug_resp_df
         self.__drug_resp_df = training_drug_resp_df if self.training \
             else validation_drug_resp_df
-
+        print("=" * 80)
 
 # Test segment for drug response dataset
 if __name__ == '__main__':

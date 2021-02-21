@@ -216,18 +216,18 @@ def get_drug_dscptr_df(data_root: str,
         # Drop NaN values if the percentage of NaN exceeds nan_threshold
         # Note that columns (features) are dropped first, and then rows (drugs)
         valid_thresh = 1.0 - dscptr_nan_thresh
-        #df.dropna(axis=1, inplace=True, thresh=int(df.shape[0] * valid_thresh))
-        tb.dropna(axis=0, inplace=True)
-        #df.dropna(axis=0, inplace=True, thresh=int(df.shape[1] * valid_thresh))
-        tb.dropna(axis=1, inplace=True)
+        df.dropna(axis=1, inplace=True, thresh=int(df.shape[0] * valid_thresh))
+        #tb.dropna(axis=0, inplace=True)
+        df.dropna(axis=0, inplace=True, thresh=int(df.shape[1] * valid_thresh))
+        #tb.dropna(axis=1, inplace=True)
 
 
 
         # Fill the rest of NaN with column means
-        #df.fillna(df.mean(), inplace=True)
+        df.fillna(df.mean(), inplace=True)
         # TODO: fix this to work with list of values or a table with one row
-        tb = tb.fillna(np.mean(df.mean()))
-        df = tb.to_pandas()
+        #tb = tb.fillna(np.mean(df.mean()))
+        #df = tb.to_pandas()
 
         # Scaling the descriptor with given scaling method
         df = scale_dataframe(df, dscptr_scaling)
@@ -244,6 +244,7 @@ def get_drug_dscptr_df(data_root: str,
 
     # Convert the dtypes for a more efficient, compact dataframe ##############
     df = df.astype(float_dtype)
+    print(f">>>> df.index : {df.index}")
     t_end = time.time()
     print(f"Total Time taken get_drug_dscptr_df: {t_end - t_start} s")
     print("=" * 80)

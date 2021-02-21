@@ -92,6 +92,8 @@ class CLClassDataset(data.Dataset):
 
         # Initialization ######################################################
         self.__data_root = data_root
+        print("*" * 80)
+        print("-----CLClassDataset-----")
 
         print(">>> Data Root:: ", data_root)
 
@@ -125,9 +127,22 @@ class CLClassDataset(data.Dataset):
 
         # Join the RNA sequence data with meta data. cl_df will have columns:
         # ['data_src', 'site', 'type', 'category', 'seq']
+        print(">>>> Concat shapes")
+        print("self.__cl_meta_df: ")
+        print(f"shape : {self.__cl_meta_df.shape}")
+        print(f"columns : {self.__cl_meta_df.columns}")
+
+        print("self.__cl_meta_df: ")
+        print(f"shape : {self.__rnaseq_df[['seq']].shape}")
+        print(f"columns : {self.__rnaseq_df[['seq']].columns}")
+
         self.__cl_df = pd.concat([self.__cl_meta_df,
                                   self.__rnaseq_df[['seq']]],
                                  axis=1, join='inner')
+
+        print("self.__cl_df")
+        print(f"shape: {self.__cl_df.shape}")
+        print(f"columns: {self.__cl_df.columns}")
 
         # Encode data source from int into one-hot encoding
         num_data_src = len(get_label_dict(data_root, 'data_src_dict.txt'))
@@ -159,6 +174,8 @@ class CLClassDataset(data.Dataset):
             print('\t%i Unique Cell Lines (feature dim: %4i).'
                   % (self.num_cells, self.rnaseq_dim))
             print('=' * 80)
+
+        print("*" * 80)
 
     def __len__(self):
         """length = len(cl_class_dataset)

@@ -43,7 +43,6 @@ class DataFrameDataset(data.Dataset):
             ram_dtype (type): dtype for data storage in RAM.
             out_dtype (type): dtype for data output during slicing.
         """
-
         self.__data = dataframe.values.astype(ram_dtype)
         self.__out_dtype = out_dtype
         self.__len = len(self.__data)
