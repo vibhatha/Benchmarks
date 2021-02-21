@@ -197,7 +197,7 @@ def get_drug_dscptr_df(data_root: str,
             os.path.join(data_root, RAW_FOLDER, DSCPTR_FILENAME),
             sep='\t',
             header=0,
-            index_col=0,
+            #index_col=0, # DON"T DO INDEXING HERE
             na_values='na')
         t_e_load = time.time()
 
@@ -211,17 +211,19 @@ def get_drug_dscptr_df(data_root: str,
         print(f"DataFrame : {df.shape}")
         print(df)
         print("DataFrame Index: ")
-        print(df.index)
+        index_values = df.index.tolist()
 
         # Drop NaN values if the percentage of NaN exceeds nan_threshold
         # Note that columns (features) are dropped first, and then rows (drugs)
         valid_thresh = 1.0 - dscptr_nan_thresh
-        df.dropna(axis=1, inplace=True, thresh=int(df.shape[0] * valid_thresh))
-        #tb.dropna(axis=0, inplace=True)
-        df.dropna(axis=0, inplace=True, thresh=int(df.shape[1] * valid_thresh))
-        #tb.dropna(axis=1, inplace=True)
+        #df.dropna(axis=1, inplace=True, thresh=int(df.shape[0] * valid_thresh))
+        tb.dropna(axis=0, inplace=True)
+        #df.dropna(axis=0, inplace=True, thresh=int(df.shape[1] * valid_thresh))
+        tb.dropna(axis=1, inplace=True)
 
-
+        df = tb.to_pandas()
+        print(df)
+        df.set_index(df.columns[0], inplace=True)
 
         # Fill the rest of NaN with column means
         df.fillna(df.mean(), inplace=True)
@@ -244,7 +246,7 @@ def get_drug_dscptr_df(data_root: str,
 
     # Convert the dtypes for a more efficient, compact dataframe ##############
     df = df.astype(float_dtype)
-    print(f">>>> df.index : {df.index}")
+    #print(f">>>> df.index : {df.index}")
     t_end = time.time()
     print(f"Total Time taken get_drug_dscptr_df: {t_end - t_start} s")
     print("=" * 80)
