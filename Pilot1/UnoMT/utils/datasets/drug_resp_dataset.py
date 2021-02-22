@@ -186,15 +186,15 @@ class DrugRespDataset(data.Dataset):
 
         # Public attributes ###################################################
         print(f"Drugs Original Amount : {self.__drug_resp_df.shape}")
-        #tb_drugs = Table.from_pandas(ctx, self.__drug_resp_df)
-        #tb_drugs_unique = tb_drugs['DRUG_ID'].unique()
-        #tb_cells_unique = tb_drugs['CELLNAME'].unique()
+        tb_drugs = Table.from_pandas(ctx, self.__drug_resp_df)
+        tb_drugs_unique = tb_drugs['DRUG_ID'].unique()
+        tb_cells_unique = tb_drugs['CELLNAME'].unique()
 
-        #tb_drugs_unique_list = list(tb_drugs_unique.to_pydict().items())[0][1]
-        #tb_cells_unique_list = list(tb_cells_unique.to_pydict().items())[0][1]
+        tb_drugs_unique_list = list(tb_drugs_unique.to_pydict().items())[0][1]
+        tb_cells_unique_list = list(tb_cells_unique.to_pydict().items())[0][1]
 
-        self.drugs = self.__drug_resp_df['DRUG_ID'].unique().tolist()
-        self.cells = self.__drug_resp_df['CELLNAME'].unique().tolist()
+        self.drugs = tb_drugs_unique_list #self.__drug_resp_df['DRUG_ID'].unique().tolist()
+        self.cells = tb_cells_unique_list #self.__drug_resp_df['CELLNAME'].unique().tolist()
         self.num_records = len(self.__drug_resp_df)
         self.drug_feature_dim = self.__drug_feature_df.shape[1]
         self.rnaseq_dim = self.__rnaseq_df.shape[1]
