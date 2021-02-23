@@ -181,14 +181,20 @@ class DrugRespDataset(data.Dataset):
 
         # Train/validation split ##############################################
         print(f"Loaded Drug Resp DF Original Amount : {self.__drug_resp_df.shape}")
-
+        t_split_start = time.time()
         self.__split_drug_resp()
+        t_split_end = time.time()
+
+        print(f"Split Time: {t_split_end - t_split_start} s")
 
         # Public attributes ###################################################
         print(f"Drugs Original Amount : {self.__drug_resp_df.shape}")
         tb_drugs = Table.from_pandas(ctx, self.__drug_resp_df)
+        t_unq_start = time.time()
         tb_drugs_unique = tb_drugs['DRUG_ID'].unique()
         tb_cells_unique = tb_drugs['CELLNAME'].unique()
+        t_unq_end = time.time()
+        print(f"Cylon Unique Time : {t_unq_end - t_unq_start} s")
 
         tb_drugs_unique_list = list(tb_drugs_unique.to_pydict().items())[0][1]
         tb_cells_unique_list = list(tb_cells_unique.to_pydict().items())[0][1]
@@ -288,9 +294,15 @@ class DrugRespDataset(data.Dataset):
                                            dict_name='data_src_dict.txt')
             encoded_data_src = data_src_dict[self.data_source]
 
+            print(f"=====> encode_data_src {type(encoded_data_src)}")
+
+            reduction_trim_series = self.__drug_resp_df['SOURCE'] == encoded_data_src
+            reduction_trim_list = reduction_trim_series.tolist()
+
+            print(f"=====> Reduction Trim Df : {type(reduction_trim_series)}, size: {len(reduction_trim_list)}")
+
             # Reduce/trim the drug response dataframe
-            self.__drug_resp_df = self.__drug_resp_df.loc[
-                self.__drug_resp_df['SOURCE'] == encoded_data_src]
+            self.__drug_resp_df = self.__drug_resp_df.loc[reduction_trim_list]
             print(f"self.__drug_resp_df.shape : {self.__drug_resp_df.shape}")
 
         # Make sure that all three dataframes share the same drugs/cells
@@ -302,23 +314,40 @@ class DrugRespDataset(data.Dataset):
         #print(f"Drug response unique: {self.__drug_resp_df['CELLNAME'].unique()}")
         print(self.__drug_resp_df)
 
-        cell_set = set(self.__drug_resp_df['CELLNAME'].unique()) \
-            & set(self.__rnaseq_df.index.values)
-        drug_set = set(self.__drug_resp_df['DRUG_ID'].unique()) \
-            & set(self.__drug_feature_df.index.values)
+        t1 = time.time()
+        tb_drug_resp_df = Table.from_pandas(ctx, self.__drug_resp_df)
+        t2 = time.time()
+        print(f">>>> Creating Drug Resp Table from Pandas : {t2 - t1} s")
+
+        drug_res_cell_unique = self.__drug_resp_df['CELLNAME'].unique() # this is numpy ndarray
+        drug_res_drug_unique = self.__drug_resp_df['DRUG_ID'].unique()
+        rnaseq_index_values = self.__rnaseq_df.index.values # this is numpy ndarray
+        drug_feature_index_values = self.__drug_feature_df.index.values
+
+        cell_set = list(set(drug_res_cell_unique) & set(rnaseq_index_values))
+        drug_set = list(set(drug_res_drug_unique) & set(drug_feature_index_values))
+
         print(f"a: self.__drug_resp_df.shape : {self.__drug_resp_df.shape}")
-        print(f">> cell_set {len(cell_set)}")
-        print(f">> drug_set {len(drug_set)}")
+        print(f">> cell_set {len(cell_set)}, {type(cell_set[0])}")
+        print(f">> drug_set {len(drug_set)}, {type(drug_set[0])}")
         print(f">> drug_set_index {len(self.__drug_feature_df.index.values)}")
 
-        self.__drug_resp_df = self.__drug_resp_df.loc[
-            (self.__drug_resp_df['CELLNAME'].isin(cell_set)) &
-            (self.__drug_resp_df['DRUG_ID'].isin(drug_set))]
+        drug_resp_df_cell_isin = self.__drug_resp_df['CELLNAME'].isin(cell_set)
+        drug_resp_df_drugid_isin = self.__drug_resp_df['DRUG_ID'].isin(drug_set)
+
+        drug_resp_df_loc_filters = (drug_resp_df_cell_isin) & (drug_resp_df_drugid_isin)
+
+        print(f">>> drug_resp_df_loc_filters : {type(drug_resp_df_loc_filters)}")
+
+        self.__drug_resp_df = self.__drug_resp_df.loc[drug_resp_df_loc_filters]
         print(f"b: self.__drug_resp_df.shape : {self.__drug_resp_df.shape}")
-        self.__rnaseq_df = self.__rnaseq_df[
-            self.__rnaseq_df.index.isin(cell_set)]
-        self.__drug_feature_df = self.__drug_feature_df[
-            self.__drug_feature_df.index.isin(drug_set)]
+
+        rnaseq_df_index_isin = self.__rnaseq_df.index.isin(cell_set)
+        drug_feature_df_index_isin = self.__drug_feature_df.index.isin(drug_set)
+
+        self.__rnaseq_df = self.__rnaseq_df[rnaseq_df_index_isin]
+        self.__drug_feature_df = self.__drug_feature_df[drug_feature_df_index_isin]
+
         print(f"c: self.__drug_resp_df.shape : {self.__drug_resp_df.shape}")
         logger.debug('There are %i drugs and %i cell lines, with %i response '
                      'records after trimming.'
@@ -360,7 +389,10 @@ class DrugRespDataset(data.Dataset):
         # data samples from the same data source, like 'NCI60'
         print("=" * 80)
         print("__split_drug_resp")
+        t_trim_start = time.time()
         self.__trim_dataframes()
+        t_trim_end = time.time()
+        print(f"Time Taken To Trim Operation : {t_trim_end - t_trim_start} s")
 
         # Get lists of all drugs & cells corresponding from data source
         print(f"cell_list : {self.__drug_resp_df.shape}")
