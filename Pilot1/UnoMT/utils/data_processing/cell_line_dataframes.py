@@ -247,7 +247,7 @@ def get_cl_meta_df(data_root: str,
 
     df = df.astype(int_dtype)
     t_end = time.time()
-    print(f"Total time taken {get_cl_meta_df} : {t_end - t_start} s")
+    print(f"Total time taken get_cl_meta_df : {t_end - t_start} s")
     print("=" * 80)
     return df
 

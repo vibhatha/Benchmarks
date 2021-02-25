@@ -117,6 +117,9 @@ def get_drug_fgpt_df(data_root: str,
         print(f"Data Loadding pfp_df: {t_e_2_load - t_s_2_load} s")
         print(pfp_df)
 
+        ecfp_df = ecfp_df.add_prefix("1_")
+        pfp_df = pfp_df.add_prefix("2_")
+
         df = pd.concat([ecfp_df, pfp_df], axis=1, join='inner')
 
         print(f"Concatenated Pdf : {df.shape}")
@@ -134,7 +137,7 @@ def get_drug_fgpt_df(data_root: str,
         except FileExistsError:
             pass
         # avoid saving to pickle to run the whole data processing step
-        #df.to_pickle(df_path)
+        # df.to_pickle(df_path)
 
     # Convert the dtypes for a more efficient, compact dataframe ##############
     df = df.astype(int_dtype)
@@ -197,11 +200,11 @@ def get_drug_dscptr_df(data_root: str,
             os.path.join(data_root, RAW_FOLDER, DSCPTR_FILENAME),
             sep='\t',
             header=0,
-            #index_col=0, # DON"T DO INDEXING HERE
+            # index_col=0, # DON"T DO INDEXING HERE
             na_values='na')
         t_e_load = time.time()
 
-        #print(artb)
+        # print(artb)
 
         tb: Table = Table.from_pandas(ctx, df)
         print(f"Table shape : {tb.shape}")
@@ -216,9 +219,9 @@ def get_drug_dscptr_df(data_root: str,
         # Drop NaN values if the percentage of NaN exceeds nan_threshold
         # Note that columns (features) are dropped first, and then rows (drugs)
         valid_thresh = 1.0 - dscptr_nan_thresh
-        #df.dropna(axis=1, inplace=True, thresh=int(df.shape[0] * valid_thresh))
+        # df.dropna(axis=1, inplace=True, thresh=int(df.shape[0] * valid_thresh))
         tb.dropna(axis=0, inplace=True)
-        #df.dropna(axis=0, inplace=True, thresh=int(df.shape[1] * valid_thresh))
+        # df.dropna(axis=0, inplace=True, thresh=int(df.shape[1] * valid_thresh))
         tb.dropna(axis=1, inplace=True)
 
         df = tb.to_pandas()
@@ -228,8 +231,8 @@ def get_drug_dscptr_df(data_root: str,
         # Fill the rest of NaN with column means
         df.fillna(df.mean(), inplace=True)
         # TODO: fix this to work with list of values or a table with one row
-        #tb = tb.fillna(np.mean(df.mean()))
-        #df = tb.to_pandas()
+        # tb = tb.fillna(np.mean(df.mean()))
+        # df = tb.to_pandas()
 
         # Scaling the descriptor with given scaling method
         df = scale_dataframe(df, dscptr_scaling)
@@ -242,11 +245,11 @@ def get_drug_dscptr_df(data_root: str,
             os.makedirs(os.path.join(data_root, PROC_FOLDER))
         except FileExistsError:
             pass
-        #df.to_pickle(df_path)
+        # df.to_pickle(df_path)
 
     # Convert the dtypes for a more efficient, compact dataframe ##############
     df = df.astype(float_dtype)
-    #print(f">>>> df.index : {df.index}")
+    # print(f">>>> df.index : {df.index}")
     t_end = time.time()
     print(f"Total Time taken get_drug_dscptr_df: {t_end - t_start} s")
     print("=" * 80)
@@ -285,14 +288,16 @@ def get_drug_feature_df(data_root: str,
     if drug_feature_usage == 'both':
         print(f"drug_feature_usage: {drug_feature_usage}")
         print("=" * 80)
-        return pd.concat(
-            [get_drug_fgpt_df(data_root=data_root,
-                              int_dtype=int_dtype),
-             get_drug_dscptr_df(data_root=data_root,
-                                dscptr_scaling=dscptr_scaling,
-                                dscptr_nan_thresh=dscptr_nan_thresh,
-                                float_dtype=float_dtype)],
-            axis=1, join='inner')
+        drug_fgpt_df = get_drug_fgpt_df(data_root=data_root,
+                                        int_dtype=int_dtype)
+
+        drug_dscptr_df = get_drug_dscptr_df(data_root=data_root,
+                                            dscptr_scaling=dscptr_scaling,
+                                            dscptr_nan_thresh=dscptr_nan_thresh,
+                                            float_dtype=float_dtype)
+        print(f">>>> get_drug_feature_df.Concat Columns: {len(drug_fgpt_df.columns)}, "
+              f"{len(drug_dscptr_df.columns)}")
+        return pd.concat([drug_fgpt_df, drug_dscptr_df], axis=1, join='inner')
     elif drug_feature_usage == 'fingerprint':
         print(f"drug_feature_usage: {drug_feature_usage}")
         return get_drug_fgpt_df(data_root=data_root,
@@ -376,7 +381,7 @@ def get_drug_prop_df(data_root: str):
             os.makedirs(os.path.join(data_root, PROC_FOLDER))
         except FileExistsError:
             pass
-        #df.to_pickle(df_path)
+        # df.to_pickle(df_path)
     print("=" * 80)
     return df
 
@@ -406,11 +411,11 @@ def get_drug_target_df(data_root: str,
 
     # Only take the rows with specific target families for classification
     df = df[df['TARGET'].isin(TGT_FAMS)][['TARGET']]
-    #tb = tb[tb['TARGET'].isin(TGT_FAMS)][['TARGET']]
+    # tb = tb[tb['TARGET'].isin(TGT_FAMS)][['TARGET']]
 
-    #print(f"Check IsIn {df.shape}, {tb.shape}")
-    #df = tb.to_pandas()
-    #assert df.values.flatten().tolist() == tb.to_pandas().values.flatten().tolist()
+    # print(f"Check IsIn {df.shape}, {tb.shape}")
+    # df = tb.to_pandas()
+    # assert df.values.flatten().tolist() == tb.to_pandas().values.flatten().tolist()
 
     # Encode str formatted target families into integers
     df['TARGET'] = encode_label_to_int(data_root=data_root,
@@ -451,12 +456,12 @@ def get_drug_qed_df(data_root: str,
     print(f">>> Table Shape Before Dropna {tb.shape} , {df.shape}")
     # Drop all the NaN values before scaling
     df.dropna(axis=0, inplace=True)
-    #tb.dropna(axis=1, inplace=True) # TODO:: issue handle
+    # tb.dropna(axis=1, inplace=True) # TODO:: issue handle
     print(f">>> get_drug_qed_df.DropNa : {df.shape} , {tb.shape}")
 
     # Note that weighted QED is by default already in the range of [0, 1]
     # Scaling the weighted QED with given scaling method
-    #df = tb.to_pandas()
+    # df = tb.to_pandas()
     df = scale_dataframe(df, qed_scaling)
 
     # Convert the dtypes for a more efficient, compact dataframe
@@ -465,7 +470,6 @@ def get_drug_qed_df(data_root: str,
 
 
 if __name__ == '__main__':
-
     logging.basicConfig(level=logging.DEBUG)
 
     print('=' * 80 + '\nDrug feature dataframe head:')
@@ -479,5 +483,3 @@ if __name__ == '__main__':
 
     print('=' * 80 + '\nDrug target families dataframe head:')
     print(get_drug_qed_df(data_root='../../data/', qed_scaling='none').head())
-
-

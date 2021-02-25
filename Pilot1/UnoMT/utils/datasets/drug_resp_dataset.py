@@ -32,6 +32,7 @@ import time
 
 ctx = CylonContext(config=None, distributed=False)
 
+
 # pycylon imports end
 
 class DrugRespDataset(data.Dataset):
@@ -165,6 +166,8 @@ class DrugRespDataset(data.Dataset):
             int_dtype=int_dtype,
             float_dtype=float_dtype)
 
+        self.__drug_resp_tb = Table.from_pandas(ctx, self.__drug_resp_df)
+
         self.__drug_feature_df = get_drug_feature_df(
             data_root=data_root,
             drug_feature_usage=drug_feature_usage,
@@ -173,11 +176,15 @@ class DrugRespDataset(data.Dataset):
             int_dtype=int_dtype,
             float_dtype=float_dtype)
 
+        self.__drug_feature_tb = Table.from_pandas(ctx, self.__drug_feature_df)
+
         self.__rnaseq_df = get_rna_seq_df(
             data_root=data_root,
             rnaseq_feature_usage=rnaseq_feature_usage,
             rnaseq_scaling=rnaseq_scaling,
             float_dtype=float_dtype)
+
+        self.__rnaseq_tb = Table.from_pandas(ctx, self.__rnaseq_df)
 
         # Train/validation split ##############################################
         print(f"Loaded Drug Resp DF Original Amount : {self.__drug_resp_df.shape}")
@@ -199,8 +206,8 @@ class DrugRespDataset(data.Dataset):
         tb_drugs_unique_list = list(tb_drugs_unique.to_pydict().items())[0][1]
         tb_cells_unique_list = list(tb_cells_unique.to_pydict().items())[0][1]
 
-        self.drugs = tb_drugs_unique_list #self.__drug_resp_df['DRUG_ID'].unique().tolist()
-        self.cells = tb_cells_unique_list #self.__drug_resp_df['CELLNAME'].unique().tolist()
+        self.drugs = tb_drugs_unique_list  # self.__drug_resp_df['DRUG_ID'].unique().tolist()
+        self.cells = tb_cells_unique_list  # self.__drug_resp_df['CELLNAME'].unique().tolist()
         self.num_records = len(self.__drug_resp_df)
         self.drug_feature_dim = self.__drug_feature_df.shape[1]
         self.rnaseq_dim = self.__rnaseq_df.shape[1]
@@ -296,10 +303,16 @@ class DrugRespDataset(data.Dataset):
 
             print(f"=====> encode_data_src {type(encoded_data_src)}")
 
+            reduction_trim_tb = self.__drug_resp_tb['SOURCE'] == encoded_data_src
+            reduction_trim_tb_list = list(reduction_trim_tb.to_pydict().items())[0][1]
+
             reduction_trim_series = self.__drug_resp_df['SOURCE'] == encoded_data_src
             reduction_trim_list = reduction_trim_series.tolist()
 
-            print(f"=====> Reduction Trim Df : {type(reduction_trim_series)}, size: {len(reduction_trim_list)}")
+            assert reduction_trim_tb_list == reduction_trim_list
+
+            print(
+                f"=====> Reduction Trim Df : {type(reduction_trim_series)}, size: {len(reduction_trim_list)}")
 
             # Reduce/trim the drug response dataframe
             self.__drug_resp_df = self.__drug_resp_df.loc[reduction_trim_list]
@@ -311,7 +324,7 @@ class DrugRespDataset(data.Dataset):
         # print(f"Overlapping Shapes {len(self.__rnaseq_df.index.values)}, "
         #       f"{self.__drug_resp_df['CELLNAME'].unique().shape}")
         print(f"Index values : {self.__rnaseq_df.index.values}")
-        #print(f"Drug response unique: {self.__drug_resp_df['CELLNAME'].unique()}")
+        # print(f"Drug response unique: {self.__drug_resp_df['CELLNAME'].unique()}")
         print(self.__drug_resp_df)
 
         t1 = time.time()
@@ -319,9 +332,9 @@ class DrugRespDataset(data.Dataset):
         t2 = time.time()
         print(f">>>> Creating Drug Resp Table from Pandas : {t2 - t1} s")
 
-        drug_res_cell_unique = self.__drug_resp_df['CELLNAME'].unique() # this is numpy ndarray
+        drug_res_cell_unique = self.__drug_resp_df['CELLNAME'].unique()  # this is numpy ndarray
         drug_res_drug_unique = self.__drug_resp_df['DRUG_ID'].unique()
-        rnaseq_index_values = self.__rnaseq_df.index.values # this is numpy ndarray
+        rnaseq_index_values = self.__rnaseq_df.index.values  # this is numpy ndarray
         drug_feature_index_values = self.__drug_feature_df.index.values
 
         cell_set = list(set(drug_res_cell_unique) & set(rnaseq_index_values))
@@ -396,13 +409,18 @@ class DrugRespDataset(data.Dataset):
 
         # Get lists of all drugs & cells corresponding from data source
         print(f"cell_list : {self.__drug_resp_df.shape}")
+        t_unique_lst_start = time.time()
         cell_list = self.__drug_resp_df['CELLNAME'].unique().tolist()
         drug_list = self.__drug_resp_df['DRUG_ID'].unique().tolist()
+        t_end_lst_end = time.time()
+
+        print(f">>> Time Taken To Unique List : {t_end_lst_end - t_unique_lst_start} s")
 
         print(f"cell_list : {len(cell_list)}")
         print(f"drug_list : {len(drug_list)}")
 
         # Create an array to store all drugs' analysis results
+        t_itr_start = time.time()
         drug_anlys_dict = {idx: row.values for idx, row in
                            get_drug_anlys_df(self.__data_root).iterrows()}
         drug_anlys_array = np.array([drug_anlys_dict[d] for d in drug_list])
@@ -412,6 +430,9 @@ class DrugRespDataset(data.Dataset):
                           get_cl_meta_df(self.__data_root)
                           [['type']].iterrows()}
         cell_type_list = [cell_type_dict[c] for c in cell_list]
+        t_itr_end = time.time()
+
+        print(f">>> Time Taken To Itr Op : {t_itr_end - t_itr_start} s")
 
         # Change validation size when both features are disjoint in splitting
         # Note that theoretically should use validation_ratio ** 0.5,
@@ -428,48 +449,66 @@ class DrugRespDataset(data.Dataset):
 
         # Try to split the cells stratified on type list
         try:
+            t1 = time.time()
             training_cell_list, validation_cell_list = \
                 train_test_split(cell_list, **split_kwargs,
                                  stratify=cell_type_list)
+            t2 = time.time()
+            print(f">>> 1. Sub Split Timing {t2 - t1} s")
         except ValueError:
             logger.warning('Failed to split %s cells in stratified '
                            'way. Splitting randomly ...' % self.data_source)
+            t1 = time.time()
             training_cell_list, validation_cell_list = \
                 train_test_split(cell_list, **split_kwargs)
+            t2 = time.time()
+            print(f">>> 2. Sub Split Timing {t2 - t1} s")
 
         # Try to split the drugs stratified on the drug analysis results
         try:
+            t1 = time.time()
             training_drug_list, validation_drug_list = \
                 train_test_split(drug_list, **split_kwargs,
                                  stratify=drug_anlys_array)
+            t2 = time.time()
+            print(f">>> 3. Sub Split Timing {t2 - t1} s")
         except ValueError:
             logger.warning('Failed to split %s drugs stratified on growth '
                            'and correlation. Splitting solely on avg growth'
                            ' ...' % self.data_source)
 
             try:
+                t1 = time.time()
                 training_drug_list, validation_drug_list = \
                     train_test_split(drug_list, **split_kwargs,
                                      stratify=drug_anlys_array[:, 0])
+                t2 = time.time()
+                print(f">>> 4. Sub Split Timing {t2 - t1} s")
             except ValueError:
                 logger.warning('Failed to split %s drugs on avg growth. '
                                'Splitting solely on avg correlation ...'
                                % self.data_source)
 
                 try:
+                    t1 = time.time()
                     training_drug_list, validation_drug_list = \
                         train_test_split(drug_list, **split_kwargs,
                                          stratify=drug_anlys_array[:, 1])
+                    t2 = time.time()
+                    print(f">>> 5. Sub Split Timing {t2 - t1} s")
                 except ValueError:
                     logger.warning('Failed to split %s drugs on avg '
                                    'correlation. Splitting randomly ...'
                                    % self.data_source)
+                    t1 = time.time()
                     training_drug_list, validation_drug_list = \
                         train_test_split(drug_list, **split_kwargs)
+                    t2 = time.time()
+                    print(f">>> 6. Sub Split Timing {t2 - t1} s")
 
         # Split data based on disjoint cell/drug strategy
         if self.__disjoint_cells and self.__disjoint_drugs:
-
+            t1 = time.time()
             training_drug_resp_df = self.__drug_resp_df.loc[
                 (self.__drug_resp_df['CELLNAME'].isin(training_cell_list)) &
                 (self.__drug_resp_df['DRUG_ID'].isin(training_drug_list))]
@@ -477,34 +516,43 @@ class DrugRespDataset(data.Dataset):
             validation_drug_resp_df = self.__drug_resp_df.loc[
                 (self.__drug_resp_df['CELLNAME'].isin(validation_cell_list)) &
                 (self.__drug_resp_df['DRUG_ID'].isin(validation_drug_list))]
+            t2 = time.time()
+            print(f">>> 1. Sub Loc[isin] Op {t2 - t1} s")
 
         elif self.__disjoint_cells and (not self.__disjoint_drugs):
-
+            t1 = time.time()
             training_drug_resp_df = self.__drug_resp_df.loc[
                 self.__drug_resp_df['CELLNAME'].isin(training_cell_list)]
 
             validation_drug_resp_df = self.__drug_resp_df.loc[
                 self.__drug_resp_df['CELLNAME'].isin(validation_cell_list)]
+            t2 = time.time()
+            print(f">>> 2. Sub Loc[isin] Op {t2 - t1} s")
 
         elif (not self.__disjoint_cells) and self.__disjoint_drugs:
-
+            t1 = time.time()
             training_drug_resp_df = self.__drug_resp_df.loc[
                 self.__drug_resp_df['DRUG_ID'].isin(training_drug_list)]
 
             validation_drug_resp_df = self.__drug_resp_df.loc[
                 self.__drug_resp_df['DRUG_ID'].isin(validation_drug_list)]
+            t2 = time.time()
+            print(f">>> 3. Sub Loc[isin] Op {t2 - t1} s")
 
         else:
+            t1 = time.time()
             training_drug_resp_df, validation_drug_resp_df = \
                 train_test_split(self.__drug_resp_df,
                                  test_size=self.__validation_ratio,
                                  random_state=self.__rand_state,
                                  shuffle=False)
-
+            t2 = time.time()
+            print(f">>> 4. Sub Loc[isin] Op {t2 - t1} s")
         # Make sure that if not disjoint, the training/validation set should
         #  share the same drugs/cells
         if not self.__disjoint_cells:
             # Make sure that cell lines are common
+            t1 = time.time()
             common_cells = set(training_drug_resp_df['CELLNAME'].unique()) & \
                            set(validation_drug_resp_df['CELLNAME'].unique())
 
@@ -512,9 +560,12 @@ class DrugRespDataset(data.Dataset):
                 training_drug_resp_df['CELLNAME'].isin(common_cells)]
             validation_drug_resp_df = validation_drug_resp_df.loc[
                 validation_drug_resp_df['CELLNAME'].isin(common_cells)]
+            t2 = time.time()
+            print(f">>> 5. Sub Loc[isin] Op {t2 - t1} s")
 
         if not self.__disjoint_drugs:
             # Make sure that drugs are common
+            t1 = time.time()
             common_drugs = set(training_drug_resp_df['DRUG_ID'].unique()) & \
                            set(validation_drug_resp_df['DRUG_ID'].unique())
 
@@ -522,10 +573,12 @@ class DrugRespDataset(data.Dataset):
                 training_drug_resp_df['DRUG_ID'].isin(common_drugs)]
             validation_drug_resp_df = validation_drug_resp_df.loc[
                 validation_drug_resp_df['DRUG_ID'].isin(common_drugs)]
+            t2 = time.time()
+            print(f">>> 6. Sub Loc[isin] Op {t2 - t1} s")
 
         # Check if the validation ratio is in a reasonable range
         validation_ratio = len(validation_drug_resp_df) \
-            / (len(training_drug_resp_df) + len(validation_drug_resp_df))
+                           / (len(training_drug_resp_df) + len(validation_drug_resp_df))
         if (validation_ratio < self.__validation_ratio * 0.8) \
                 or (validation_ratio > self.__validation_ratio * 1.2):
             logger.warning('Bad validation ratio: %.3f' %
@@ -536,13 +589,13 @@ class DrugRespDataset(data.Dataset):
             else validation_drug_resp_df
         print("=" * 80)
 
+
 # Test segment for drug response dataset
 if __name__ == '__main__':
 
     logging.basicConfig(level=logging.DEBUG)
 
     for src in ['NCI60', 'CTRP', 'GDSC', 'CCLE', 'gCSI']:
-
         kwarg = {
             'data_root': '../../data/',
             'summary': False,
