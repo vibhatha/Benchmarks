@@ -387,7 +387,8 @@ class DrugRespDataset(data.Dataset):
 
         self.__drug_resp_df = self.__drug_resp_df.loc[drug_resp_tb_loc_filters]
         self.__drug_resp_tb = Table.from_pandas(ctx, self.__drug_resp_df)
-        print(f"b: self.__drug_resp_df.shape : {self.__drug_resp_df.shape}, {self.__drug_resp_tb}")
+        print(f"b: self.__drug_resp_df.shape : {self.__drug_resp_df.shape}, "
+              f"{self.__drug_resp_tb.shape}")
 
         rnaseq_df_index_isin = self.__rnaseq_df.index.isin(cell_set)
         drug_feature_df_index_isin = self.__drug_feature_df.index.isin(drug_set)
@@ -395,7 +396,8 @@ class DrugRespDataset(data.Dataset):
         self.__rnaseq_df = self.__rnaseq_df[rnaseq_df_index_isin]
         self.__drug_feature_df = self.__drug_feature_df[drug_feature_df_index_isin]
 
-        print(f"c: self.__drug_resp_df.shape : {self.__drug_resp_df.shape}")
+        print(f"c: self.__drug_resp_df.shape : {self.__drug_resp_df.shape}, "
+              f"{self.__drug_resp_tb.shape}")
         logger.debug('There are %i drugs and %i cell lines, with %i response '
                      'records after trimming.'
                      % (len(drug_set), len(cell_set),
@@ -454,15 +456,20 @@ class DrugRespDataset(data.Dataset):
         print(f"drug_list : {len(drug_list)}")
 
         # Create an array to store all drugs' analysis results
+        t_load_drug_start = time.time()
+        drug_analys_df = get_drug_anlys_df(self.__data_root)
+        t_load_drug_end = time.time()
+        cl_meta_df = get_cl_meta_df(self.__data_root)
+        t_load_cl_meta_end = time.time()
+        t_load_drug_end = time.time()
+        print(f">>> Time taken to load drug meta data: {t_load_drug_end - t_load_drug_start} s")
+        print(f">>> Time taken to load cell meta data: {t_load_cl_meta_end - t_load_drug_end} s")
         t_itr_start = time.time()
-        drug_anlys_dict = {idx: row.values for idx, row in
-                           get_drug_anlys_df(self.__data_root).iterrows()}
+        drug_anlys_dict = {idx: row.values for idx, row in drug_analys_df.iterrows()}
         drug_anlys_array = np.array([drug_anlys_dict[d] for d in drug_list])
 
         # Create a list to store all cell lines types
-        cell_type_dict = {idx: row.values for idx, row in
-                          get_cl_meta_df(self.__data_root)
-                          [['type']].iterrows()}
+        cell_type_dict = {idx: row.values for idx, row in cl_meta_df[['type']].iterrows()}
         cell_type_list = [cell_type_dict[c] for c in cell_list]
         t_itr_end = time.time()
 

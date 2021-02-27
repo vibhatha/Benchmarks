@@ -471,8 +471,8 @@ def get_drug_anlys_df(data_root: str):
 
         print(f"drug_analysis_array: {drug_analysis_array.shape}")
         print(drug_analysis_array)
-        print("Index")
-        print(df.set_index)
+        print("response_dataframes.Index")
+        print(df.index)
 
         # save to disk for future usage
         try:
