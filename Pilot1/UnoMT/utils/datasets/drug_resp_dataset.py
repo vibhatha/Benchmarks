@@ -617,33 +617,37 @@ class DrugRespDataset(data.Dataset):
         if self.__disjoint_cells and self.__disjoint_drugs:
             print(">>> Filter Case 1")
             t1 = time.time()
-            train_cell_df_filter = self.__drug_resp_df['CELLNAME'].isin(training_cell_list)
-            train_drug_df_filter = self.__drug_resp_df['DRUG_ID'].isin(training_drug_list)
-            train_res_filter = train_cell_df_filter & train_drug_df_filter
+            # train_cell_df_filter = self.__drug_resp_df['CELLNAME'].isin(training_cell_list)
+            # train_drug_df_filter = self.__drug_resp_df['DRUG_ID'].isin(training_drug_list)
+            # train_res_filter = train_cell_df_filter & train_drug_df_filter
 
             train_cell_tb_filter = self.__drug_resp_tb['CELLNAME'].isin(training_cell_list)
             train_drug_tb_filter = self.__drug_resp_tb['DRUG_ID'].isin(training_drug_list)
             train_res_tb_filter = train_cell_tb_filter & train_drug_tb_filter
 
-            assert train_res_filter.values.tolist() == train_res_tb_filter.to_pandas(
-            ).values.flatten().tolist()
+            # assert train_res_filter.values.tolist() == train_res_tb_filter.to_pandas(
+            # ).values.flatten().tolist()
 
-            training_drug_resp_df = self.__drug_resp_df.loc[train_res_filter]
+            train_res_tb_filter = list(train_res_tb_filter.to_pydict().items())[0][1]
 
-            validation_cell_df_filter = self.__drug_resp_df['CELLNAME'].isin(validation_cell_list)
-            validation_drug_df_filter = self.__drug_resp_df['DRUG_ID'].isin(training_drug_list)
-            validation_res_filter = validation_cell_df_filter & validation_drug_df_filter
+            training_drug_resp_df = self.__drug_resp_df.loc[train_res_tb_filter]
+
+            # validation_cell_df_filter = self.__drug_resp_df['CELLNAME'].isin(validation_cell_list)
+            # validation_drug_df_filter = self.__drug_resp_df['DRUG_ID'].isin(training_drug_list)
+            # validation_res_filter = validation_cell_df_filter & validation_drug_df_filter
 
             validation_cell_tb_filter = self.__drug_resp_tb['CELLNAME'].isin(validation_cell_list)
             validation_drug_tb_filter = self.__drug_resp_tb['DRUG_ID'].isin(training_drug_list)
             validation_res_tb_filter = validation_cell_tb_filter & validation_drug_tb_filter
 
-            assert validation_res_filter.values.tolist() == validation_res_tb_filter.to_pandas(
-            ).values.flatten().tolist()
+            # assert validation_res_filter.values.tolist() == validation_res_tb_filter.to_pandas(
+            # ).values.flatten().tolist()
 
-            print(f"\t Filter Sizes {train_res_filter.shape} {validation_res_filter.shape}")
+            #print(f"\t Filter Sizes {train_res_filter.shape} {validation_res_filter.shape}")
 
-            validation_drug_resp_df = self.__drug_resp_df.loc[validation_res_filter]
+            validation_res_tb_filter = list(validation_res_tb_filter.to_pydict().items())[0][1]
+
+            validation_drug_resp_df = self.__drug_resp_df.loc[validation_res_tb_filter]
 
             t2 = time.time()
             print(f">>> 1. Sub Loc[isin] Op {t2 - t1} s")
@@ -651,41 +655,50 @@ class DrugRespDataset(data.Dataset):
         elif self.__disjoint_cells and (not self.__disjoint_drugs):
             print(">>> Filter Case 2")
             t1 = time.time()
-            train_filter = self.__drug_resp_df['CELLNAME'].isin(training_cell_list)
+            #train_filter = self.__drug_resp_df['CELLNAME'].isin(training_cell_list)
             train_tb_filter = self.__drug_resp_tb['CELLNAME'].isin(training_cell_list)
 
-            assert train_tb_filter.to_pandas().values.flatten().tolist() == \
-                   train_filter.values.tolist()
+            # assert train_tb_filter.to_pandas().values.flatten().tolist() == \
+            #        train_filter.values.tolist()
 
-            training_drug_resp_df = self.__drug_resp_df.loc[train_filter]
+            train_tb_filter = list(train_tb_filter.to_pydict().items())[0][1]
 
-            validation_filter = self.__drug_resp_df['CELLNAME'].isin(validation_cell_list)
+            training_drug_resp_df = self.__drug_resp_df.loc[train_tb_filter]
+
+            #validation_filter = self.__drug_resp_df['CELLNAME'].isin(validation_cell_list)
             validation_tb_filter = self.__drug_resp_tb['CELLNAME'].isin(validation_cell_list)
 
-            assert validation_tb_filter.to_pandas().values.flatten().tolist() == \
-                   validation_filter.values.tolist()
+            # assert validation_tb_filter.to_pandas().values.flatten().tolist() == \
+            #        validation_filter.values.tolist()
 
-            validation_drug_resp_df = self.__drug_resp_df.loc[validation_filter]
+            validation_tb_filter = list(validation_tb_filter.to_pydict().items())[0][1]
+
+            validation_drug_resp_df = self.__drug_resp_df.loc[validation_tb_filter]
             t2 = time.time()
             print(f">>> 2. Sub Loc[isin] Op {t2 - t1} s")
 
         elif (not self.__disjoint_cells) and self.__disjoint_drugs:
             print(">>> Filter Case 3")
             t1 = time.time()
-            train_filter = self.__drug_resp_df['DRUG_ID'].isin(training_drug_list)
+            #train_filter = self.__drug_resp_df['DRUG_ID'].isin(training_drug_list)
             train_tb_filter = self.__drug_resp_tb['DRUG_ID'].isin(training_drug_list)
 
-            assert train_tb_filter.to_pandas().values.flatten().tolist() == train_filter.values.tolist()
+            #assert train_tb_filter.to_pandas().values.flatten().tolist() ==
+            # train_filter.values.tolist()
 
-            training_drug_resp_df = self.__drug_resp_df.loc[train_filter]
+            train_tb_filter = list(train_tb_filter.to_pydict().items())[0][1]
 
-            validation_filter = self.__drug_resp_df['DRUG_ID'].isin(validation_drug_list)
+            training_drug_resp_df = self.__drug_resp_df.loc[train_tb_filter]
+
+            #validation_filter = self.__drug_resp_df['DRUG_ID'].isin(validation_drug_list)
             validation_tb_filter = self.__drug_resp_tb['DRUG_ID'].isin(validation_drug_list)
 
-            assert validation_tb_filter.to_pandas().values.flatten().tolist() == \
-                   validation_filter.values.tolist()
+            # assert validation_tb_filter.to_pandas().values.flatten().tolist() == \
+            #        validation_filter.values.tolist()
 
-            validation_drug_resp_df = self.__drug_resp_df.loc[validation_filter]
+            validation_tb_filter = list(validation_tb_filter.to_pydict().items())[0][1]
+
+            validation_drug_resp_df = self.__drug_resp_df.loc[validation_tb_filter]
             t2 = time.time()
             print(f">>> 3. Sub Loc[isin] Op {t2 - t1} s")
 
@@ -745,6 +758,11 @@ class DrugRespDataset(data.Dataset):
         # Keep only training_drug_resp_df or validation_drug_resp_df
         self.__drug_resp_df = training_drug_resp_df if self.training \
             else validation_drug_resp_df
+        self.__drug_resp_tb = Table.from_pandas(ctx, self.__drug_resp_df, preserve_index=True)
+        self.__drug_resp_tb.set_index(self.__drug_resp_tb.column_names[-1], drop=True)
+
+        print(f"============> Drug Resp DF Index Values{self.__drug_resp_df.index.values}")
+
         print(f">>> $#* After Split Stage: {self.__drug_resp_df.shape},"
               f" {self.__drug_resp_tb.shape}")
         print("=" * 80)
