@@ -467,9 +467,17 @@ class DrugRespDataset(data.Dataset):
         # Get lists of all drugs & cells corresponding from data source
         print(f"cell_list : {self.__drug_resp_df.shape}, {self.__drug_resp_tb.shape}")
         t_unique_lst_start = time.time()
-        cell_list = self.__drug_resp_df['CELLNAME'].unique().tolist()
-        drug_list = self.__drug_resp_df['DRUG_ID'].unique().tolist()
+        # cell_list = self.__drug_resp_df['CELLNAME'].unique().tolist()
+        # drug_list = self.__drug_resp_df['DRUG_ID'].unique().tolist()
+
+        cell_unq_tb = self.__drug_resp_tb['CELLNAME'].unique()
+        cell_list = list(cell_unq_tb.to_pydict().items())[0][1]
+        drug_unq_tb = self.__drug_resp_tb['DRUG_ID'].unique()
+        drug_list = list(drug_unq_tb.to_pydict().items())[0][1]
         t_end_lst_end = time.time()
+
+        # assert cell_list == cell_tb_list
+        # assert drug_list == drug_tb_list
 
         print(f">>> Time Taken To Unique List : {t_end_lst_end - t_unique_lst_start} s")
 
@@ -482,15 +490,47 @@ class DrugRespDataset(data.Dataset):
         t_load_drug_end = time.time()
         cl_meta_df = get_cl_meta_df(self.__data_root)
         t_load_cl_meta_end = time.time()
+
+        drug_analys_tb = Table.from_pandas(ctx, drug_analys_df, preserve_index=True)
+        drug_analys_tb.set_index(drug_analys_tb.column_names[-1], drop=True)
+
+        cl_meta_tb = Table.from_pandas(ctx, cl_meta_df, preserve_index=True)
+        cl_meta_tb.set_index(cl_meta_tb.column_names[-1], drop=True)
+
+        assert drug_analys_tb.index.values.tolist() == drug_analys_df.index.values.tolist()
+        assert cl_meta_tb.index.values.tolist() == cl_meta_df.index.values.tolist()
+
+        print(f">>> Shape of Drug Analys Data : {drug_analys_df.shape} {drug_analys_tb.shape}")
+        print(f">>> Shape of Cell Meta Data : {cl_meta_df.shape} {cl_meta_tb.shape}")
+
+        print(f">>> $$$ Drug Analys Results: {drug_analys_df.index.values}")
+        print(f">>> $$$ Cell Meta Results: {cl_meta_df.index.values}")
         print(f">>> Time taken to load drug meta data: {t_load_drug_end - t_load_drug_start} s")
         print(f">>> Time taken to load cell meta data: {t_load_cl_meta_end - t_load_drug_end} s")
         t_itr_start = time.time()
-        drug_anlys_dict = {idx: row.values for idx, row in drug_analys_df.iterrows()}
-        drug_anlys_array = np.array([drug_anlys_dict[d] for d in drug_list])
+
+        drug_anlys_tb_dict = {idx: row for idx, row in drug_analys_tb.iterrows()}
+        drug_anlys_tb_array = np.array([drug_anlys_tb_dict[d] for d in drug_list])
+
+        #drug_anlys_dict = {idx: row.values for idx, row in drug_analys_df.iterrows()}
+        #drug_anlys_array = np.array([drug_anlys_dict[d] for d in drug_list])
+
+        #assert drug_analys_tb_array.tolist() == drug_anlys_array.tolist()
 
         # Create a list to store all cell lines types
-        cell_type_dict = {idx: row.values for idx, row in cl_meta_df[['type']].iterrows()}
-        cell_type_list = [cell_type_dict[c] for c in cell_list]
+        cell_type_tb_dict = {idx: row for idx, row in cl_meta_tb[['type']].iterrows()}
+        cell_type_tb_list = [cell_type_tb_dict[c] for c in cell_list]
+
+        #cell_type_dict = {idx: row.values for idx, row in cl_meta_df[['type']].iterrows()}
+        #cell_type_list = [cell_type_dict[c] for c in cell_list]
+
+        # print(f"cell_type dict len : "
+        #       f"{len(list(cell_type_tb_dict.keys()))}, {len(list(cell_type_dict.keys()))}")
+        # assert list(cell_type_tb_dict.keys()) == list(cell_type_dict.keys())
+        # assert list(cell_type_tb_dict.values()) == list(cell_type_dict.values())
+
+        #assert cell_type_tb_list == cell_type_list
+
         t_itr_end = time.time()
 
         print(f">>> Time Taken To Itr Op : {t_itr_end - t_itr_start} s")
@@ -513,7 +553,7 @@ class DrugRespDataset(data.Dataset):
             t1 = time.time()
             training_cell_list, validation_cell_list = \
                 train_test_split(cell_list, **split_kwargs,
-                                 stratify=cell_type_list)
+                                 stratify=cell_type_tb_list)
             t2 = time.time()
             print(f">>> 1. Sub Split Timing {t2 - t1} s")
         except ValueError:
@@ -530,7 +570,7 @@ class DrugRespDataset(data.Dataset):
             t1 = time.time()
             training_drug_list, validation_drug_list = \
                 train_test_split(drug_list, **split_kwargs,
-                                 stratify=drug_anlys_array)
+                                 stratify=drug_anlys_tb_array)
             t2 = time.time()
             print(f">>> 3. Sub Split Timing {t2 - t1} s")
         except ValueError:
@@ -542,7 +582,7 @@ class DrugRespDataset(data.Dataset):
                 t1 = time.time()
                 training_drug_list, validation_drug_list = \
                     train_test_split(drug_list, **split_kwargs,
-                                     stratify=drug_anlys_array[:, 0])
+                                     stratify=drug_anlys_tb_array[:, 0])
                 t2 = time.time()
                 print(f">>> 4. Sub Split Timing {t2 - t1} s")
             except ValueError:
@@ -554,7 +594,7 @@ class DrugRespDataset(data.Dataset):
                     t1 = time.time()
                     training_drug_list, validation_drug_list = \
                         train_test_split(drug_list, **split_kwargs,
-                                         stratify=drug_anlys_array[:, 1])
+                                         stratify=drug_anlys_tb_array[:, 1])
                     t2 = time.time()
                     print(f">>> 5. Sub Split Timing {t2 - t1} s")
                 except ValueError:
