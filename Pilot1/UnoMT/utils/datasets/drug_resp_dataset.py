@@ -209,10 +209,10 @@ class DrugRespDataset(data.Dataset):
 
         self.drugs = tb_drugs_unique_list  # self.__drug_resp_df['DRUG_ID'].unique().tolist()
         self.cells = tb_cells_unique_list  # self.__drug_resp_df['CELLNAME'].unique().tolist()
-        self.num_records = len(self.__drug_resp_df)  # self.__drug_resp_tb.row_count
-        self.drug_feature_dim = self.__drug_feature_df.shape[
-            1]  # self.__drug_feature_tb.column_count
+        self.num_records = self.__drug_resp_tb.row_count  # len(self.__drug_resp_df)
+        self.drug_feature_dim = self.__drug_feature_tb.column_count  # self.__drug_feature_df.shape[1]
         self.rnaseq_dim = self.__rnaseq_df.shape[1]  # self.__rnaseq_tb.column_count
+        assert self.__rnaseq_df.shape[1] == self.__rnaseq_tb.column_count
         # #self.__rnaseq_df.shape[1]
 
         print(f"2*** Drug resp shapes: {self.__drug_resp_df.shape}, {self.__drug_resp_tb.shape}")
