@@ -211,8 +211,8 @@ class DrugRespDataset(data.Dataset):
         self.cells = tb_cells_unique_list  # self.__drug_resp_df['CELLNAME'].unique().tolist()
         self.num_records = self.__drug_resp_tb.row_count  # len(self.__drug_resp_df)
         self.drug_feature_dim = self.__drug_feature_tb.column_count  # self.__drug_feature_df.shape[1]
-        self.rnaseq_dim = self.__rnaseq_df.shape[1]  # self.__rnaseq_tb.column_count
-        assert self.__rnaseq_df.shape[1] == self.__rnaseq_tb.column_count
+        self.rnaseq_dim = self.__rnaseq_tb.column_count  # self.__rnaseq_df.shape[1]
+        #assert self.__rnaseq_df.shape[1] == self.__rnaseq_tb.column_count
         # #self.__rnaseq_df.shape[1]
 
         print(f"2*** Drug resp shapes: {self.__drug_resp_df.shape}, {self.__drug_resp_tb.shape}")
@@ -221,16 +221,24 @@ class DrugRespDataset(data.Dataset):
 
         # Converting dataframes to arrays and dict for rapid access ###########
         self.__drug_resp_array = self.__drug_resp_df.values
+
         # The following conversion will upcast dtypes
-        self.__drug_feature_dict = {idx: row.values for idx, row in
-                                    self.__drug_feature_df.iterrows()}
-        self.__rnaseq_dict = {idx: row.values for idx, row in
-                              self.__rnaseq_df.iterrows()}
+        # self.__drug_feature_dict = {idx: row.values.tolist() for idx, row in
+        #                             self.__drug_feature_df.iterrows()}
+        self.__drug_feature_dict = {idx: np.array(row) for idx, row in
+                                    self.__drug_feature_tb.iterrows()}
+        self.__rnaseq_dict = {idx: np.array(row) for idx, row in self.__rnaseq_tb.iterrows()}
+        # self.__rnaseq_dict = {idx: row.values.tolist() for idx, row in
+        #                       self.__rnaseq_df.iterrows()}
 
         # Dataframes are not needed any more
         self.__drug_resp_df = None
         self.__drug_feature_df = None
         self.__rnaseq_df = None
+
+        self.__drug_resp_tb = None
+        self.__drug_feature_tb = None
+        self.__rnaseq_tb = None
 
         # Dataset summary #####################################################
         if summary:
@@ -336,7 +344,7 @@ class DrugRespDataset(data.Dataset):
         print(">>>> Shape of Overlapping cell name and index values")
         # print(f"Overlapping Shapes {len(self.__rnaseq_df.index.values)}, "
         #       f"{self.__drug_resp_df['CELLNAME'].unique().shape}")
-        print(f"RNASEQ Index values : {self.__rnaseq_df.index.values.shape}")
+        #print(f"RNASEQ Index values : {self.__rnaseq_df.index.values.shape}")
         # print(f"Drug response unique: {self.__drug_resp_df['CELLNAME'].unique()}")
         print(self.__drug_resp_df)
 
@@ -355,11 +363,13 @@ class DrugRespDataset(data.Dataset):
         # assert drug_res_cell_unique.tolist() == drug_res_cell_unique_np.tolist()
         # assert drug_res_drug_unique.tolist() == drug_res_drug_unique_np.tolist()
 
-        rnaseq_index_values = self.__rnaseq_df.index.values  # this is numpy ndarray
-        drug_feature_index_values = self.__drug_feature_df.index.values
+        rnaseq_index_values = self.__rnaseq_tb.index.values # self.__rnaseq_df.index.values
+        # this is numpy ndarray
+        drug_feature_index_values = self.__drug_feature_tb.index.values
+        #self.__drug_feature_df.index.values
 
-        assert drug_feature_index_values.tolist() == self.__drug_feature_tb.index.index_values
-        assert self.__rnaseq_df.index.values.tolist() == self.__rnaseq_tb.index.index_values
+        #assert drug_feature_index_values.tolist() == self.__drug_feature_tb.index.index_values
+        #assert self.__rnaseq_df.index.values.tolist() == self.__rnaseq_tb.index.index_values
 
         cell_set = list(set(drug_res_cell_unique_np) & set(rnaseq_index_values))
         drug_set = list(set(drug_res_drug_unique_np) & set(drug_feature_index_values))
@@ -367,7 +377,7 @@ class DrugRespDataset(data.Dataset):
         print(f"a: self.__drug_resp_df.shape : {self.__drug_resp_df.shape}, {self.__drug_resp_tb}")
         print(f">> cell_set {len(cell_set)}, {type(cell_set)},  {type(cell_set[0])}")
         print(f">> drug_set {len(drug_set)}, {type(drug_set)}, {type(drug_set[0])}")
-        print(f">> drug_set_index {len(self.__drug_feature_df.index.values)}")
+        #print(f">> drug_set_index {len(self.__drug_feature_df.index.values)}")
 
         # drug_resp_df_cell_isin = self.__drug_resp_df['CELLNAME'].isin(cell_set)
         # drug_resp_df_drugid_isin = self.__drug_resp_df['DRUG_ID'].isin(drug_set)
@@ -392,19 +402,20 @@ class DrugRespDataset(data.Dataset):
         print(f"b: self.__drug_resp_df.shape : {self.__drug_resp_df.shape}, "
               f"{self.__drug_resp_tb.shape}")
 
-        print(f"1. __rnaseq_df {self.__rnaseq_df.shape} {self.__rnaseq_tb.shape}")
-        print(f"1. __drug_feature_df {self.__drug_feature_df.shape} {self.__drug_feature_tb.shape}")
-        rnaseq_df_index_isin = self.__rnaseq_df.index.isin(cell_set)
-        drug_feature_df_index_isin = self.__drug_feature_df.index.isin(drug_set)
+        #print(f"1. __rnaseq_df {self.__rnaseq_df.shape} {self.__rnaseq_tb.shape}")
+        #print(f"1. __drug_feature_df {self.__drug_feature_df.shape}
+        # {self.__drug_feature_tb.shape}")
+        #rnaseq_df_index_isin = self.__rnaseq_df.index.isin(cell_set)
+        #drug_feature_df_index_isin = self.__drug_feature_df.index.isin(drug_set)
 
         rnaseq_tb_index_isin = self.__rnaseq_tb.index.isin(cell_set)
         drug_feature_tb_index_isin = self.__drug_feature_tb.index.isin(drug_set)
 
-        assert rnaseq_df_index_isin.tolist() == rnaseq_tb_index_isin.tolist()
-        assert drug_feature_df_index_isin.tolist() == drug_feature_tb_index_isin.tolist()
+        #assert rnaseq_df_index_isin.tolist() == rnaseq_tb_index_isin.tolist()
+        #assert drug_feature_df_index_isin.tolist() == drug_feature_tb_index_isin.tolist()
 
-        self.__rnaseq_df = self.__rnaseq_df[rnaseq_df_index_isin]
-        self.__drug_feature_df = self.__drug_feature_df[drug_feature_df_index_isin]
+        #self.__rnaseq_df = self.__rnaseq_df[rnaseq_df_index_isin]
+        #self.__drug_feature_df = self.__drug_feature_df[drug_feature_df_index_isin]
 
         rnaseq_tb_filter = Table.from_list(ctx, ['filter'], [rnaseq_tb_index_isin.tolist()])
         drug_feature_tb_filter = Table.from_list(ctx, ['filter'],
@@ -418,8 +429,9 @@ class DrugRespDataset(data.Dataset):
         self.__drug_feature_tb = self.__drug_feature_tb[drug_feature_tb_filter]
         self.__drug_feature_tb.set_index(drug_feature_new_index)
 
-        print(f"2. __rnaseq_df {self.__rnaseq_df.shape} {self.__rnaseq_tb.shape}")
-        print(f"2. __drug_feature_df {self.__drug_feature_df.shape} {self.__drug_feature_tb.shape}")
+        #print(f"2. __rnaseq_df {self.__rnaseq_df.shape} {self.__rnaseq_tb.shape}")
+        #print(f"2. __drug_feature_df {self.__drug_feature_df.shape}
+        # {self.__drug_feature_tb.shape}")
 
         print(f"c: self.__drug_resp_df.shape : {self.__drug_resp_df.shape}, "
               f"{self.__drug_resp_tb.shape}")
@@ -643,7 +655,7 @@ class DrugRespDataset(data.Dataset):
             # assert validation_res_filter.values.tolist() == validation_res_tb_filter.to_pandas(
             # ).values.flatten().tolist()
 
-            #print(f"\t Filter Sizes {train_res_filter.shape} {validation_res_filter.shape}")
+            # print(f"\t Filter Sizes {train_res_filter.shape} {validation_res_filter.shape}")
 
             validation_res_tb_filter = list(validation_res_tb_filter.to_pydict().items())[0][1]
 
@@ -655,7 +667,7 @@ class DrugRespDataset(data.Dataset):
         elif self.__disjoint_cells and (not self.__disjoint_drugs):
             print(">>> Filter Case 2")
             t1 = time.time()
-            #train_filter = self.__drug_resp_df['CELLNAME'].isin(training_cell_list)
+            # train_filter = self.__drug_resp_df['CELLNAME'].isin(training_cell_list)
             train_tb_filter = self.__drug_resp_tb['CELLNAME'].isin(training_cell_list)
 
             # assert train_tb_filter.to_pandas().values.flatten().tolist() == \
@@ -665,7 +677,7 @@ class DrugRespDataset(data.Dataset):
 
             training_drug_resp_df = self.__drug_resp_df.loc[train_tb_filter]
 
-            #validation_filter = self.__drug_resp_df['CELLNAME'].isin(validation_cell_list)
+            # validation_filter = self.__drug_resp_df['CELLNAME'].isin(validation_cell_list)
             validation_tb_filter = self.__drug_resp_tb['CELLNAME'].isin(validation_cell_list)
 
             # assert validation_tb_filter.to_pandas().values.flatten().tolist() == \
@@ -680,17 +692,17 @@ class DrugRespDataset(data.Dataset):
         elif (not self.__disjoint_cells) and self.__disjoint_drugs:
             print(">>> Filter Case 3")
             t1 = time.time()
-            #train_filter = self.__drug_resp_df['DRUG_ID'].isin(training_drug_list)
+            # train_filter = self.__drug_resp_df['DRUG_ID'].isin(training_drug_list)
             train_tb_filter = self.__drug_resp_tb['DRUG_ID'].isin(training_drug_list)
 
-            #assert train_tb_filter.to_pandas().values.flatten().tolist() ==
+            # assert train_tb_filter.to_pandas().values.flatten().tolist() ==
             # train_filter.values.tolist()
 
             train_tb_filter = list(train_tb_filter.to_pydict().items())[0][1]
 
             training_drug_resp_df = self.__drug_resp_df.loc[train_tb_filter]
 
-            #validation_filter = self.__drug_resp_df['DRUG_ID'].isin(validation_drug_list)
+            # validation_filter = self.__drug_resp_df['DRUG_ID'].isin(validation_drug_list)
             validation_tb_filter = self.__drug_resp_tb['DRUG_ID'].isin(validation_drug_list)
 
             # assert validation_tb_filter.to_pandas().values.flatten().tolist() == \
