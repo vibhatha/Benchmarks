@@ -216,8 +216,8 @@ class DrugRespDataset(data.Dataset):
         # #self.__rnaseq_df.shape[1]
 
         print(f"2*** Drug resp shapes: {self.__drug_resp_tb.shape}")
-        print(f"2*** Drug feature shapes: {self.__drug_feature_df.shape},"
-              f" {self.__drug_feature_tb.shape}")
+        # print(f"2*** Drug feature shapes: {self.__drug_feature_df.shape},"
+        #       f" {self.__drug_feature_tb.shape}")
 
         # Converting dataframes to arrays and dict for rapid access ###########
         self.__drug_resp_array = None
@@ -341,8 +341,12 @@ class DrugRespDataset(data.Dataset):
             t2 = time.time()
             self.__drug_resp_df = self.__drug_resp_df.loc[reduction_trim_tb_list]
             t3 = time.time()
+            # self.__drug_resp_tb = self.__drug_resp_tb.loc[reduction_trim_tb_list]
+            # t4 = time.time()
+            # print(f"2.$$$ self.__drug_resp_df.shape : {self.__drug_resp_df.shape} "
+            #       f"{self.__drug_resp_tb.shape}, {t3 - t2}, {t4 - t3}")
             self.__drug_resp_tb = Table.from_pandas(ctx, self.__drug_resp_df)
-            print(f"2.$$$ self.__drug_resp_df.shape : {self.__drug_resp_df.shape} "
+            print(f"3.$$$ self.__drug_resp_df.shape : {self.__drug_resp_df.shape} "
                   f"{self.__drug_resp_tb.shape}, {t3 - t2}")
 
         # Make sure that all three dataframes share the same drugs/cells
