@@ -144,7 +144,10 @@ class UnoMTModel(object):
     def build_data_loaders(self):
 
         args = self.args
-        
+        print("^" * 80)
+        print(f"Training Data Sources: {args.train_sources}")
+        print(f"Validation  Data Sources: {args.val_sources}")
+        print("^" * 80)
   
         self.drug_resp_trn_loader = torch.utils.data.DataLoader(
                 DrugRespDataset(data_src=args.train_sources,

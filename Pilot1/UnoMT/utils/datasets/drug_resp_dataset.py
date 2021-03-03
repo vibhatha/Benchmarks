@@ -189,7 +189,7 @@ class DrugRespDataset(data.Dataset):
         self.__rnaseq_tb.set_index(self.__rnaseq_tb.column_names[-1], drop=True)
 
         # Train/validation split ##############################################
-        print(f"Loaded Drug Resp DF Original Amount : {self.__drug_resp_df.shape}")
+        print(f"Loaded Drug Resp DF Original Amount : {self.__drug_resp_tb.shape}")
         t_split_start = time.time()
         self.__split_drug_resp()
         t_split_end = time.time()
@@ -197,7 +197,7 @@ class DrugRespDataset(data.Dataset):
         print(f"Split Time: {t_split_end - t_split_start} s")
 
         # Public attributes ###################################################
-        print(f"Drugs Original Amount : {self.__drug_resp_df.shape}")
+        print(f"Drugs Original Amount : {self.__drug_resp_tb.shape}")
         t_unq_start = time.time()
         tb_drugs_unique = self.__drug_resp_tb['DRUG_ID'].unique()
         tb_cells_unique = self.__drug_resp_tb['CELLNAME'].unique()
@@ -215,12 +215,18 @@ class DrugRespDataset(data.Dataset):
         #assert self.__rnaseq_df.shape[1] == self.__rnaseq_tb.column_count
         # #self.__rnaseq_df.shape[1]
 
-        print(f"2*** Drug resp shapes: {self.__drug_resp_df.shape}, {self.__drug_resp_tb.shape}")
+        print(f"2*** Drug resp shapes: {self.__drug_resp_tb.shape}")
         print(f"2*** Drug feature shapes: {self.__drug_feature_df.shape},"
               f" {self.__drug_feature_tb.shape}")
 
         # Converting dataframes to arrays and dict for rapid access ###########
-        self.__drug_resp_array = self.__drug_resp_df.values
+        self.__drug_resp_array = None
+        try:
+            self.__drug_resp_array = self.__drug_resp_tb.to_numpy()
+        except ValueError:
+            print("Data to Numpy Non-zero-copy")
+            self.__drug_resp_array = self.__drug_resp_tb.to_numpy(zero_copy_only=False)
+        #self.__drug_resp_df.values
 
         # The following conversion will upcast dtypes
         # self.__drug_feature_dict = {idx: row.values.tolist() for idx, row in
@@ -346,7 +352,6 @@ class DrugRespDataset(data.Dataset):
         #       f"{self.__drug_resp_df['CELLNAME'].unique().shape}")
         #print(f"RNASEQ Index values : {self.__rnaseq_df.index.values.shape}")
         # print(f"Drug response unique: {self.__drug_resp_df['CELLNAME'].unique()}")
-        print(self.__drug_resp_df)
 
         # drug_res_cell_unique = self.__drug_resp_df['CELLNAME'].unique()  # this is numpy ndarray
         # drug_res_drug_unique = self.__drug_resp_df['DRUG_ID'].unique()
