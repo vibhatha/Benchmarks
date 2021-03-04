@@ -84,6 +84,7 @@ def get_drug_resp_df(data_root: str,
             index_col=None,
             #usecols=[0, 1, 2, 4, 6, ]
         )
+        df = df[['SOURCE', 'DRUG_ID', 'CELLNAME', 'LOG_CONCENTRATION', 'GROWTH']]
         t_e_dat_load = time.time()
 
         print(f"Data Loading time: {t_e_dat_load - t_s_dat_load} s")
