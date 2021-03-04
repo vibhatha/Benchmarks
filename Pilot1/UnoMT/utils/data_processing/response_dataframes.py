@@ -24,7 +24,7 @@ from joblib import Parallel, delayed
 from utils.data_processing.dataframe_scaling import scale_dataframe
 from utils.data_processing.label_encoding import encode_label_to_int
 from utils.miscellaneous.file_downloading import download_files
-
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -435,6 +435,7 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
 
     print('=' * 80 + '\nDrug response dataframe head:')
+    t1 = time.time()
     print(get_drug_resp_df(data_root='../../data/',
                            grth_scaling='none').head())
     # Test statistic data loading functions
@@ -444,7 +445,8 @@ if __name__ == '__main__':
     # Plot histogram for drugs ('AVG_GRTH', 'AVG_CORR')
     get_drug_stats_df(data_root='../../data/', grth_scaling='none'). \
         hist(column=['AVG_GRTH', 'AVG_CORR'], figsize=(16, 9), bins=20)
-
-    plt.suptitle('Histogram of average growth and average correlation between '
-                 'concentration and growth of all drugs')
-    plt.show()
+    t2 = time.time()
+    print(f"Time Taken : {t2-t1} s")
+    # plt.suptitle('Histogram of average growth and average correlation between '
+    #              'concentration and growth of all drugs')
+    # plt.show()
