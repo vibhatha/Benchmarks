@@ -212,6 +212,8 @@ def get_combo_stats_df(data_root: str,
                     corr = stats.pearsonr(x=conc_tuple, y=grth_tuple)[0]
                 except Warning:
                     corr = 0.0
+                except ValueError:
+                    corr = 0.0
             # corr = 0. if np.isnan(corr) else corr
 
             # Each row contains the following fields:
