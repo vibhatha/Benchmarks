@@ -76,13 +76,16 @@ def get_drug_resp_df(data_root: str,
         # Download the raw file if not exist
         download_files(filenames=DRUG_RESP_FILENAME,
                        target_folder=os.path.join(data_root, RAW_FOLDER))
-
+        t_s_dat_load = time.time()
         df = pd.read_csv(
             os.path.join(data_root, RAW_FOLDER, DRUG_RESP_FILENAME),
             sep='\t',
             header=0,
             index_col=None,
             usecols=[0, 1, 2, 4, 6, ])
+        t_e_dat_load = time.time()
+
+        print(f"Data Loading time: {t_e_dat_load - t_s_dat_load} s")
 
         # Delete '-', which could be inconsistent between seq and meta
         df['CELLNAME'] = df['CELLNAME'].str.replace('-', '')
@@ -440,11 +443,11 @@ if __name__ == '__main__':
                            grth_scaling='none').head())
     # Test statistic data loading functions
     print('=' * 80 + '\nDrug analysis dataframe head:')
-    print(get_drug_anlys_df(data_root='../../data/').head())
-
-    # Plot histogram for drugs ('AVG_GRTH', 'AVG_CORR')
-    get_drug_stats_df(data_root='../../data/', grth_scaling='none'). \
-        hist(column=['AVG_GRTH', 'AVG_CORR'], figsize=(16, 9), bins=20)
+    # print(get_drug_anlys_df(data_root='../../data/').head())
+    #
+    # # Plot histogram for drugs ('AVG_GRTH', 'AVG_CORR')
+    # get_drug_stats_df(data_root='../../data/', grth_scaling='none'). \
+    #     hist(column=['AVG_GRTH', 'AVG_CORR'], figsize=(16, 9), bins=20)
     t2 = time.time()
     print(f"Time Taken : {t2-t1} s")
     # plt.suptitle('Histogram of average growth and average correlation between '
