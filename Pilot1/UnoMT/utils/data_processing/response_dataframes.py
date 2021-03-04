@@ -82,14 +82,17 @@ def get_drug_resp_df(data_root: str,
             sep='\t',
             header=0,
             index_col=None,
-            usecols=[0, 1, 2, 4, 6, ])
+            #usecols=[0, 1, 2, 4, 6, ]
+        )
         t_e_dat_load = time.time()
 
         print(f"Data Loading time: {t_e_dat_load - t_s_dat_load} s")
 
         # Delete '-', which could be inconsistent between seq and meta
+        t_str_replace_time = time.time()
         df['CELLNAME'] = df['CELLNAME'].str.replace('-', '')
-
+        t_str_replace_time = time.time() - t_str_replace_time
+        print(f"Column Name replace time: {t_str_replace_time} s")
         # Encode data sources into numeric
         df['SOURCE'] = encode_label_to_int(data_root=data_root,
                                            dict_name='data_src_dict.txt',
@@ -108,7 +111,7 @@ def get_drug_resp_df(data_root: str,
             os.makedirs(os.path.join(data_root, PROC_FOLDER))
         except FileExistsError:
             pass
-        df.to_pickle(df_path)
+        #df.to_pickle(df_path)
 
     # Convert the dtypes for a more efficient, compact dataframe ##############
     df[['SOURCE']] = df[['SOURCE']].astype(int_dtype)
