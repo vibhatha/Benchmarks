@@ -16,7 +16,7 @@ import pandas as pd
 from utils.data_processing.dataframe_scaling import scale_dataframe
 from utils.data_processing.label_encoding import encode_label_to_int
 from utils.miscellaneous.file_downloading import download_files
-
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -199,7 +199,7 @@ def get_cl_meta_df(data_root: str,
 if __name__ == '__main__':
 
     logging.basicConfig(level=logging.DEBUG)
-
+    t1 = time.time()
     print('=' * 80 + '\nRNA sequence dataframe head:')
     print(get_rna_seq_df(data_root='../../data/',
                          rnaseq_feature_usage='source_scale',
@@ -207,3 +207,5 @@ if __name__ == '__main__':
 
     print('=' * 80 + '\nCell line metadata dataframe head:')
     print(get_cl_meta_df(data_root='../../data/').head())
+    t2 = time.time()
+    print(f"Time Taken : {t2-t1}")
