@@ -314,6 +314,7 @@ class DrugRespDataset(data.Dataset):
         print("=" * 80)
         print("__trim_dataframes")
         print("")
+        t_trim_time = time.time()
         if self.data_source.lower() != 'all':
             print("self.data_source.lower() != 'all'")
             logger.debug('Specifying data source %s ... ' % self.data_source)
@@ -359,12 +360,14 @@ class DrugRespDataset(data.Dataset):
 
         # drug_res_cell_unique = self.__drug_resp_df['CELLNAME'].unique()  # this is numpy ndarray
         # drug_res_drug_unique = self.__drug_resp_df['DRUG_ID'].unique()
-
+        t_unique_op_1 = time.time()
         drug_res_cell_unique_tb = self.__drug_resp_tb['CELLNAME'].unique()
         drug_res_cell_unique_np = np.array(list(drug_res_cell_unique_tb.to_pydict().items())[0][1])
 
         drug_res_drug_unique_tb = self.__drug_resp_tb['DRUG_ID'].unique()
         drug_res_drug_unique_np = np.array(list(drug_res_drug_unique_tb.to_pydict().items())[0][1])
+        t_unique_op_1 = time.time() - t_unique_op_1
+        print(f"Trim Unique Op 1 Time: {t_unique_op_1} s")
 
         # print(f"1. Unique Op Shapes {drug_res_cell_unique.shape}, {drug_res_cell_unique_np.shape}")
         # print(f"2. Unique Op Shapes {drug_res_drug_unique.shape}, {drug_res_drug_unique_np.shape}")
@@ -379,21 +382,24 @@ class DrugRespDataset(data.Dataset):
 
         #assert drug_feature_index_values.tolist() == self.__drug_feature_tb.index.index_values
         #assert self.__rnaseq_df.index.values.tolist() == self.__rnaseq_tb.index.index_values
-
+        cell_set_formation_time = time.time()
         cell_set = list(set(drug_res_cell_unique_np) & set(rnaseq_index_values))
         drug_set = list(set(drug_res_drug_unique_np) & set(drug_feature_index_values))
-
-        print(f"a: self.__drug_resp_df.shape : {self.__drug_resp_df.shape}, {self.__drug_resp_tb}")
+        cell_set_formation_time = time.time() - cell_set_formation_time
+        print(f"Cell Set Formation Time: {cell_set_formation_time} s")
+        print(f"a: self.__drug_resp_df.shape : {self.__drug_resp_df.shape}, "
+              f"{self.__drug_resp_tb.shape}")
         print(f">> cell_set {len(cell_set)}, {type(cell_set)},  {type(cell_set[0])}")
         print(f">> drug_set {len(drug_set)}, {type(drug_set)}, {type(drug_set[0])}")
         #print(f">> drug_set_index {len(self.__drug_feature_df.index.values)}")
 
         # drug_resp_df_cell_isin = self.__drug_resp_df['CELLNAME'].isin(cell_set)
         # drug_resp_df_drugid_isin = self.__drug_resp_df['DRUG_ID'].isin(drug_set)
-
+        t_isin_time_op_1 = time.time()
         drug_resp_tb_cell_isin = self.__drug_resp_tb['CELLNAME'].isin(cell_set)
         drug_resp_tb_drugid_isin = self.__drug_resp_tb['DRUG_ID'].isin(drug_set)
-
+        t_isin_time_op_1 = time.time() - t_isin_time_op_1
+        print(f"Is in op 1 time: {t_isin_time_op_1} s")
         drug_resp_tb_cell_isin_np = np.array(list(drug_resp_tb_cell_isin.to_pydict().items())[0][1])
         drug_resp_tb_drugid_isin_np = np.array(
             list(drug_resp_tb_drugid_isin.to_pydict().items())[0][1])
@@ -407,7 +413,9 @@ class DrugRespDataset(data.Dataset):
         print(f">>> drug_resp_df_loc_filters : {type(drug_resp_tb_loc_filters)}")
 
         self.__drug_resp_df = self.__drug_resp_df.loc[drug_resp_tb_loc_filters]
+        t_from_pandas_op_1_time = time.time()
         self.__drug_resp_tb = Table.from_pandas(ctx, self.__drug_resp_df)
+        print(f"From Pandas Op 1 : {time.time() - t_from_pandas_op_1_time} s")
         print(f"b: self.__drug_resp_df.shape : {self.__drug_resp_df.shape}, "
               f"{self.__drug_resp_tb.shape}")
 
@@ -448,6 +456,8 @@ class DrugRespDataset(data.Dataset):
                      'records after trimming.'
                      % (len(drug_set), len(cell_set),
                         len(self.__drug_resp_df)))
+        t_trim_time = time.time() - t_trim_time
+        print(f"Time taken for trim drug_resp_dataset {t_trim_time} s")
         print("=" * 80)
         return
 
@@ -488,7 +498,7 @@ class DrugRespDataset(data.Dataset):
         self.__trim_dataframes()
         t_trim_end = time.time()
         print(f"Time Taken To Trim Operation : {t_trim_end - t_trim_start} s")
-
+        t_split_time = time.time()
         # Get lists of all drugs & cells corresponding from data source
         print(f"cell_list : {self.__drug_resp_df.shape}, {self.__drug_resp_tb.shape}")
         t_unique_lst_start = time.time()
@@ -528,8 +538,8 @@ class DrugRespDataset(data.Dataset):
         print(f">>> Shape of Drug Analys Data : {drug_analys_df.shape} {drug_analys_tb.shape}")
         print(f">>> Shape of Cell Meta Data : {cl_meta_df.shape} {cl_meta_tb.shape}")
 
-        print(f">>> $$$ Drug Analys Results: {drug_analys_df.index.values}")
-        print(f">>> $$$ Cell Meta Results: {cl_meta_df.index.values}")
+        #print(f">>> $$$ Drug Analys Results: {drug_analys_df.index.values}")
+        #print(f">>> $$$ Cell Meta Results: {cl_meta_df.index.values}")
         print(f">>> Time taken to load drug meta data: {t_load_drug_end - t_load_drug_start} s")
         print(f">>> Time taken to load cell meta data: {t_load_cl_meta_end - t_load_drug_end} s")
         t_itr_start = time.time()
@@ -782,10 +792,12 @@ class DrugRespDataset(data.Dataset):
         self.__drug_resp_tb = Table.from_pandas(ctx, self.__drug_resp_df, preserve_index=True)
         self.__drug_resp_tb.set_index(self.__drug_resp_tb.column_names[-1], drop=True)
 
-        print(f"============> Drug Resp DF Index Values{self.__drug_resp_df.index.values}")
+        #print(f"============> Drug Resp DF Index Values{self.__drug_resp_df.index.values}")
 
         print(f">>> $#* After Split Stage: {self.__drug_resp_df.shape},"
               f" {self.__drug_resp_tb.shape}")
+        t_split_time = time.time() - t_split_time
+        print(f"Time taken for Split Operation {t_split_time} s")
         print("=" * 80)
 
 
@@ -793,8 +805,8 @@ class DrugRespDataset(data.Dataset):
 if __name__ == '__main__':
 
     logging.basicConfig(level=logging.DEBUG)
-
-    for src in ['NCI60', 'CTRP', 'GDSC', 'CCLE', 'gCSI']:
+    t1 = time.time()
+    for src in ['NCI60', 'CTRP', 'GDSC', 'CCLE', 'gCSI'][:1]:
         kwarg = {
             'data_root': '../../data/',
             'summary': False,
@@ -813,3 +825,5 @@ if __name__ == '__main__':
         print('There are %i drugs and %i cell lines in %s.'
               % ((len(trn_set.drugs) + len(val_set.drugs)),
                  (len(trn_set.cells) + len(val_set.cells)), src))
+    t2 = time.time()
+    print(f"Total Time taken: {t2-t1} s")
