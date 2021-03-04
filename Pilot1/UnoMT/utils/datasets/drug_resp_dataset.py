@@ -19,7 +19,7 @@ from utils.data_processing.drug_dataframes import get_drug_feature_df
 from utils.data_processing.label_encoding import get_label_dict
 from utils.data_processing.response_dataframes import get_drug_resp_df, \
     get_drug_anlys_df
-
+import time
 logger = logging.getLogger(__name__)
 
 
@@ -170,20 +170,28 @@ class DrugRespDataset(data.Dataset):
         self.__split_drug_resp()
 
         # Public attributes ###################################################
+        t_unique_time = time.time()
         self.drugs = self.__drug_resp_df['DRUG_ID'].unique().tolist()
         self.cells = self.__drug_resp_df['CELLNAME'].unique().tolist()
+        t_unique_time = time.time() - t_unique_time
+        print(f"Time Taken for unique record filtering: {t_unique_time} s")
         self.num_records = len(self.__drug_resp_df)
         self.drug_feature_dim = self.__drug_feature_df.shape[1]
         self.rnaseq_dim = self.__rnaseq_df.shape[1]
 
         # Converting dataframes to arrays and dict for rapid access ###########
+        t_numpy_conversion_time = time.time()
         self.__drug_resp_array = self.__drug_resp_df.values
+        t_numpy_conversion_time = time.time() - t_numpy_conversion_time
         # The following conversion will upcast dtypes
+        t_iter_dict_time = time.time()
         self.__drug_feature_dict = {idx: row.values for idx, row in
                                     self.__drug_feature_df.iterrows()}
         self.__rnaseq_dict = {idx: row.values for idx, row in
                               self.__rnaseq_df.iterrows()}
-
+        t_iter_dict_time = time.time() - t_iter_dict_time
+        print(f"Pandas to Numpy Conversion Time: {t_numpy_conversion_time} s")
+        print(f"Dictionary Conversion time {t_iter_dict_time} s")
         # Dataframes are not needed any more
         self.__drug_resp_df = None
         self.__drug_feature_df = None
@@ -253,6 +261,7 @@ class DrugRespDataset(data.Dataset):
 
         # Encode the data source and take the data from target source only
         # Note that source could be 'NCI60', 'GDSC', etc. and 'all'
+        t_total_time = time.time()
         if self.data_source.lower() != 'all':
 
             logger.debug('Specifying data source %s ... ' % self.data_source)
@@ -286,6 +295,8 @@ class DrugRespDataset(data.Dataset):
                      'records after trimming.'
                      % (len(drug_set), len(cell_set),
                         len(self.__drug_resp_df)))
+        t_total_time = time.time() - t_total_time
+        print(f"Time Taken for Trim Operation : {t_total_time} s")
         return
 
     def __split_drug_resp(self):
@@ -319,8 +330,9 @@ class DrugRespDataset(data.Dataset):
         # Trim dataframes based on data source and common drugs/cells
         # Now drug response dataframe contains training + validation
         # data samples from the same data source, like 'NCI60'
-        self.__trim_dataframes()
 
+        self.__trim_dataframes()
+        t_split_time = time.time()
         # Get lists of all drugs & cells corresponding from data source
         cell_list = self.__drug_resp_df['CELLNAME'].unique().tolist()
         drug_list = self.__drug_resp_df['DRUG_ID'].unique().tolist()
@@ -457,13 +469,14 @@ class DrugRespDataset(data.Dataset):
         # Keep only training_drug_resp_df or validation_drug_resp_df
         self.__drug_resp_df = training_drug_resp_df if self.training \
             else validation_drug_resp_df
-
+        t_split_time = time.time() - t_split_time
+        print(f"Time taken for drug_resp_dataset Splitting {t_split_time} s")
 
 # Test segment for drug response dataset
 if __name__ == '__main__':
 
     logging.basicConfig(level=logging.DEBUG)
-
+    t1 = time.time()
     for src in ['NCI60', 'CTRP', 'GDSC', 'CCLE', 'gCSI']:
 
         kwarg = {
@@ -484,3 +497,5 @@ if __name__ == '__main__':
         print('There are %i drugs and %i cell lines in %s.'
               % ((len(trn_set.drugs) + len(val_set.drugs)),
                  (len(trn_set.cells) + len(val_set.cells)), src))
+    t2 = time.time()
+    print(f"Total Time Taken [drug_resp_dataset]: {t2 - t1} s")
