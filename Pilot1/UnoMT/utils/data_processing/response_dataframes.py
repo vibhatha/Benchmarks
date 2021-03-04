@@ -148,6 +148,7 @@ def get_drug_resp_df(data_root: str,
     df[['SOURCE']] = df[['SOURCE']].astype(int_dtype)
     df[['LOG_CONCENTRATION', 'GROWTH']] = \
         df[['LOG_CONCENTRATION', 'GROWTH']].astype(float_dtype)
+    print(f"Data Frame size: {df.shape}")
     print("=" * 80)
     return df
 
