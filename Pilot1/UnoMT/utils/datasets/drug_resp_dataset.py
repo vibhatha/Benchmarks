@@ -201,8 +201,13 @@ class DrugRespDataset(data.Dataset):
         t_unq_start = time.time()
         tb_drugs_unique = self.__drug_resp_tb['DRUG_ID'].unique()
         tb_cells_unique = self.__drug_resp_tb['CELLNAME'].unique()
-        tb_drugs_unique_list = list(tb_drugs_unique.to_pydict().items())[0][1]
-        tb_cells_unique_list = list(tb_cells_unique.to_pydict().items())[0][1]
+        tb_drugs_unique_list = tb_drugs_unique.to_numpy(zero_copy_only=False).tolist() #list(
+        # tb_drugs_unique.to_pydict(
+        # ).items())[
+        # 0][1]
+        tb_cells_unique_list = tb_cells_unique.to_numpy(zero_copy_only=False).tolist()#list(tb_cells_unique.to_pydict(
+        # ).items())[
+        # 0][1]
         t_unq_end = time.time()
         print(f"Cylon Unique Time : {t_unq_end - t_unq_start} s ")
 
@@ -327,7 +332,9 @@ class DrugRespDataset(data.Dataset):
             print(f"=====> encode_data_src {type(encoded_data_src)}")
             t_filter_by_val = time.time()
             reduction_trim_tb = self.__drug_resp_tb['SOURCE'] == encoded_data_src
-            reduction_trim_tb_list = list(reduction_trim_tb.to_pydict().items())[0][1]
+            reduction_trim_tb_list = reduction_trim_tb.to_numpy(
+                zero_copy_only=False).flatten().tolist()
+            #reduction_trim_tb_list = list(reduction_trim_tb.to_pydict().items())[0][1]
             t_filter_by_val = time.time() - t_filter_by_val
             print(f"Time taken for filter data table {t_filter_by_val} s")
 
@@ -366,10 +373,14 @@ class DrugRespDataset(data.Dataset):
         # drug_res_drug_unique = self.__drug_resp_df['DRUG_ID'].unique()
         t_unique_op_1 = time.time()
         drug_res_cell_unique_tb = self.__drug_resp_tb['CELLNAME'].unique()
-        drug_res_cell_unique_np = np.array(list(drug_res_cell_unique_tb.to_pydict().items())[0][1])
+        drug_res_cell_unique_np = drug_res_cell_unique_tb.to_numpy(
+            zero_copy_only=False).flatten()#np.array(list(
+        # drug_res_cell_unique_tb.to_pydict().items())[0][1])
 
         drug_res_drug_unique_tb = self.__drug_resp_tb['DRUG_ID'].unique()
-        drug_res_drug_unique_np = np.array(list(drug_res_drug_unique_tb.to_pydict().items())[0][1])
+        drug_res_drug_unique_np = drug_res_drug_unique_tb.to_numpy(
+            zero_copy_only=False).flatten()#np.array(list(
+        # drug_res_drug_unique_tb.to_pydict().items())[0][1])
         t_unique_op_1 = time.time() - t_unique_op_1
         print(f"Trim Unique Op 1 Time: {t_unique_op_1} s")
 
@@ -405,15 +416,18 @@ class DrugRespDataset(data.Dataset):
         t_isin_time_op_1 = time.time() - t_isin_time_op_1
         print(f"Is in op 1 time: {t_isin_time_op_1} s")
         t_isin_filter_cr = time.time()
-        drug_resp_tb_cell_isin_np = np.array(list(drug_resp_tb_cell_isin.to_pydict().items())[0][1])
-        drug_resp_tb_drugid_isin_np = np.array(
-            list(drug_resp_tb_drugid_isin.to_pydict().items())[0][1])
-
+        # drug_resp_tb_cell_isin_np = np.array(list(drug_resp_tb_cell_isin.to_pydict().items())[0][1])
+        # drug_resp_tb_drugid_isin_np = np.array(
+        #     list(drug_resp_tb_drugid_isin.to_pydict().items())[0][1])
+        drug_resp_tb_cell_isin_np = drug_resp_tb_cell_isin.to_numpy(zero_copy_only=False)
+        drug_resp_tb_drugid_isin_np = drug_resp_tb_drugid_isin.to_numpy(zero_copy_only=False)
         # drug_resp_df_loc_filters = (drug_resp_df_cell_isin) & (drug_resp_df_drugid_isin)
 
         drug_resp_tb_loc_filters = (drug_resp_tb_cell_isin_np) & (drug_resp_tb_drugid_isin_np)
         t_isin_filter_cr = time.time() - t_isin_filter_cr
-        print(f"Isin Filter creation time : {t_isin_filter_cr} s")
+        print(f"Isin Filter creation time : {t_isin_filter_cr} s ["
+              f"{drug_resp_tb_cell_isin_np.shape}, {drug_resp_tb_drugid_isin_np.shape}]")
+
 
         # assert drug_resp_df_loc_filters.tolist() == drug_resp_tb_loc_filters.tolist()
 
