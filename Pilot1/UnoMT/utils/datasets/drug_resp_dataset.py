@@ -276,21 +276,23 @@ class DrugRespDataset(data.Dataset):
 
         # Make sure that all three dataframes share the same drugs/cells
         logger.debug('Trimming dataframes on common cell lines and drugs ... ')
-
+        t_set_gen_time = time.time()
         cell_set = set(self.__drug_resp_df['CELLNAME'].unique()) \
             & set(self.__rnaseq_df.index.values)
         drug_set = set(self.__drug_resp_df['DRUG_ID'].unique()) \
             & set(self.__drug_feature_df.index.values)
-
+        t_set_gen_time = time.time() - t_set_gen_time
+        print(f"set gen time : {t_set_gen_time} s")
+        t_isin_loc = time.time()
         self.__drug_resp_df = self.__drug_resp_df.loc[
             (self.__drug_resp_df['CELLNAME'].isin(cell_set)) &
             (self.__drug_resp_df['DRUG_ID'].isin(drug_set))]
-
         self.__rnaseq_df = self.__rnaseq_df[
             self.__rnaseq_df.index.isin(cell_set)]
         self.__drug_feature_df = self.__drug_feature_df[
             self.__drug_feature_df.index.isin(drug_set)]
-
+        t_isin_loc = time.time() - t_isin_loc
+        print(f"t_isin_loc op time : {t_isin_loc} s")
         logger.debug('There are %i drugs and %i cell lines, with %i response '
                      'records after trimming.'
                      % (len(drug_set), len(cell_set),
@@ -477,7 +479,7 @@ if __name__ == '__main__':
 
     logging.basicConfig(level=logging.DEBUG)
     t1 = time.time()
-    for src in ['NCI60', 'CTRP', 'GDSC', 'CCLE', 'gCSI']:
+    for src in ['NCI60', 'CTRP', 'GDSC', 'CCLE', 'gCSI'][:1]:
 
         kwarg = {
             'data_root': '../../data/',
