@@ -116,7 +116,10 @@ def get_drug_resp_df(data_root: str,
 
         # Delete '-', which could be inconsistent between seq and meta
         #df['CELLNAME'] = df['CELLNAME'].str.replace('-', '')
+        t_str_replace_time = time.time()
         tb['CELLNAME'] = tb['CELLNAME'].applymap(lambda x: x.replace('-', ''))
+        t_str_replace_time = time.time() - t_str_replace_time
+        print(f"Str replace time {t_str_replace_time} s")
         t_2_pdf_start = time.time()
         df = tb.to_pandas()
         t_2_pdf_end = time.time()
