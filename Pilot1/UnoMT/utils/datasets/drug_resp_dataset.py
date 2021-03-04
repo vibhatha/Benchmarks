@@ -324,10 +324,11 @@ class DrugRespDataset(data.Dataset):
 
             #reduction_trim_tb = self.__drug_resp_tb['SOURCE'] == encoded_data_src
             #reduction_trim_tb_list = list(reduction_trim_tb.to_pydict().items())[0][1]
-
+            t_filter_table_list = time.time()
             reduction_trim_series = self.__drug_resp_df['SOURCE'] == encoded_data_src
             reduction_trim_list = reduction_trim_series.tolist()
-
+            t_filter_table_list = time.time() - t_filter_table_list
+            print(f"Time taken for filter data table : {t_filter_table_list} s")
             # assert reduction_trim_tb_list == reduction_trim_list
 
             # print(
@@ -354,10 +355,11 @@ class DrugRespDataset(data.Dataset):
         #       f"{self.__drug_resp_df['CELLNAME'].unique().shape}")
         #print(f"RNASEQ Index values : {self.__rnaseq_df.index.values.shape}")
         # print(f"Drug response unique: {self.__drug_resp_df['CELLNAME'].unique()}")
-
+        t_unq_op_1 = time.time()
         drug_res_cell_unique = self.__drug_resp_df['CELLNAME'].unique()  # this is numpy ndarray
         drug_res_drug_unique = self.__drug_resp_df['DRUG_ID'].unique()
-
+        t_unq_op_1 = time.time() - t_unq_op_1
+        print(f"Trim Unique Op 1 Time: {t_unq_op_1} s")
         #drug_res_cell_unique_tb = self.__drug_resp_tb['CELLNAME'].unique()
         #drug_res_cell_unique_np = np.array(list(drug_res_cell_unique_tb.to_pydict().items())[0][1])
 
@@ -385,18 +387,23 @@ class DrugRespDataset(data.Dataset):
         print(f">> drug_set {len(drug_set)}, {type(drug_set)}, {type(drug_set[0])}")
         #print(f">> drug_set_index {len(self.__drug_feature_df.index.values)}")
 
+        t_isin_op_1 = time.time()
         drug_resp_df_cell_isin = self.__drug_resp_df['CELLNAME'].isin(cell_set)
         drug_resp_df_drugid_isin = self.__drug_resp_df['DRUG_ID'].isin(drug_set)
-
+        t_isin_op_1 = time.time() - t_isin_op_1
+        print(f"Is In Op 1 Time : {t_isin_op_1} s [{drug_resp_df_cell_isin.shape}, "
+              f"{drug_resp_df_drugid_isin.shape}]")
         #drug_resp_tb_cell_isin = self.__drug_resp_tb['CELLNAME'].isin(cell_set)
         #drug_resp_tb_drugid_isin = self.__drug_resp_tb['DRUG_ID'].isin(drug_set)
 
         # drug_resp_tb_cell_isin_np = np.array(list(drug_resp_df_cell_isin.to_pydict().items())[0][1])
         # drug_resp_tb_drugid_isin_np = np.array(
         #     list(drug_resp_df_drugid_isin.to_pydict().items())[0][1])
-
+        t_isin_op_1_filter_cr = time.time()
         drug_resp_df_loc_filters = (drug_resp_df_cell_isin) & (drug_resp_df_drugid_isin)
-
+        t_isin_op_1_filter_cr = time.time() - t_isin_op_1_filter_cr
+        print(f"Isin Filter creation time : {t_isin_op_1_filter_cr} s ["
+              f"{drug_resp_df_loc_filters.shape}]")
         #drug_resp_tb_loc_filters = (drug_resp_tb_cell_isin_np) & (drug_resp_tb_drugid_isin_np)
 
         # assert drug_resp_df_loc_filters.tolist() == drug_resp_tb_loc_filters.tolist()
@@ -409,18 +416,21 @@ class DrugRespDataset(data.Dataset):
         #print(f"1. __rnaseq_df {self.__rnaseq_df.shape} {self.__rnaseq_tb.shape}")
         #print(f"1. __drug_feature_df {self.__drug_feature_df.shape}
         # {self.__drug_feature_tb.shape}")
+        t_index_isin_op_1 = time.time()
         rnaseq_df_index_isin = self.__rnaseq_df.index.isin(cell_set)
         drug_feature_df_index_isin = self.__drug_feature_df.index.isin(drug_set)
-
+        t_index_isin_op_1 = time.time() - t_index_isin_op_1
+        print(f"Indexing Isin Op 1 time : {t_index_isin_op_1} s")
         #rnaseq_tb_index_isin = self.__rnaseq_tb.index.isin(cell_set)
         #drug_feature_tb_index_isin = self.__drug_feature_tb.index.isin(drug_set)
 
         #assert rnaseq_df_index_isin.tolist() == rnaseq_tb_index_isin.tolist()
         #assert drug_feature_df_index_isin.tolist() == drug_feature_tb_index_isin.tolist()
-
+        t_indexing_filter = time.time()
         self.__rnaseq_df = self.__rnaseq_df[rnaseq_df_index_isin]
         self.__drug_feature_df = self.__drug_feature_df[drug_feature_df_index_isin]
-
+        t_indexing_filter = time.time() - t_indexing_filter
+        print(f"Indexing Isin Filter Time : {t_indexing_filter} s")
         # rnaseq_tb_filter = Table.from_list(ctx, ['filter'], [rnaseq_tb_index_isin.tolist()])
         # drug_feature_tb_filter = Table.from_list(ctx, ['filter'],
         #                                          [drug_feature_tb_index_isin.tolist()])
