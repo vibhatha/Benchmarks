@@ -432,33 +432,36 @@ class DrugRespDataset(data.Dataset):
         # assert drug_resp_df_loc_filters.tolist() == drug_resp_tb_loc_filters.tolist()
 
         print(f">>> drug_resp_df_loc_filters : {type(drug_resp_tb_loc_filters)}")
-
+        t_tb_loc_filter_time = time.time()
         self.__drug_resp_df = self.__drug_resp_df.loc[drug_resp_tb_loc_filters]
+        t_tb_loc_filter_time = time.time() - t_tb_loc_filter_time
         t_from_pandas_op_1_time = time.time()
         self.__drug_resp_tb = Table.from_pandas(ctx, self.__drug_resp_df)
         print(f"From Pandas Op 1 : {time.time() - t_from_pandas_op_1_time} s")
+        print(f"Tb.loc Filter Op 1 : {t_tb_loc_filter_time} s")
         print(f"b: self.__drug_resp_df.shape : {self.__drug_resp_df.shape}, "
               f"{self.__drug_resp_tb.shape}")
+
 
         #print(f"1. __rnaseq_df {self.__rnaseq_df.shape} {self.__rnaseq_tb.shape}")
         #print(f"1. __drug_feature_df {self.__drug_feature_df.shape}
         # {self.__drug_feature_tb.shape}")
         #rnaseq_df_index_isin = self.__rnaseq_df.index.isin(cell_set)
         #drug_feature_df_index_isin = self.__drug_feature_df.index.isin(drug_set)
-
+        t_indexing_isin_filter = time.time()
         rnaseq_tb_index_isin = self.__rnaseq_tb.index.isin(cell_set)
         drug_feature_tb_index_isin = self.__drug_feature_tb.index.isin(drug_set)
-
+        t_indexing_isin_filter = time.time() - t_indexing_isin_filter
+        print(f"Indexing Isin Op Time : {t_indexing_isin_filter} s")
         #assert rnaseq_df_index_isin.tolist() == rnaseq_tb_index_isin.tolist()
         #assert drug_feature_df_index_isin.tolist() == drug_feature_tb_index_isin.tolist()
 
         #self.__rnaseq_df = self.__rnaseq_df[rnaseq_df_index_isin]
         #self.__drug_feature_df = self.__drug_feature_df[drug_feature_df_index_isin]
-
+        t_index_based_tb_update = time.time()
         rnaseq_tb_filter = Table.from_list(ctx, ['filter'], [rnaseq_tb_index_isin.tolist()])
         drug_feature_tb_filter = Table.from_list(ctx, ['filter'],
                                                  [drug_feature_tb_index_isin.tolist()])
-
         rnaseq_new_index = self.__rnaseq_tb.index.values[rnaseq_tb_index_isin].tolist()
         self.__rnaseq_tb = self.__rnaseq_tb[rnaseq_tb_filter]
         self.__rnaseq_tb.set_index(rnaseq_new_index)
@@ -466,7 +469,8 @@ class DrugRespDataset(data.Dataset):
             drug_feature_tb_index_isin].tolist()
         self.__drug_feature_tb = self.__drug_feature_tb[drug_feature_tb_filter]
         self.__drug_feature_tb.set_index(drug_feature_new_index)
-
+        t_index_based_tb_update = time.time() - t_index_based_tb_update
+        print(f"Index based Table filter time : {t_index_based_tb_update} s")
         #print(f"2. __rnaseq_df {self.__rnaseq_df.shape} {self.__rnaseq_tb.shape}")
         #print(f"2. __drug_feature_df {self.__drug_feature_df.shape}
         # {self.__drug_feature_tb.shape}")
