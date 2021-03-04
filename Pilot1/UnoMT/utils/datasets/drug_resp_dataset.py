@@ -201,11 +201,10 @@ class DrugRespDataset(data.Dataset):
         t_unq_start = time.time()
         tb_drugs_unique = self.__drug_resp_tb['DRUG_ID'].unique()
         tb_cells_unique = self.__drug_resp_tb['CELLNAME'].unique()
-        t_unq_end = time.time()
-        print(f"Cylon Unique Time : {t_unq_end - t_unq_start} s")
-
         tb_drugs_unique_list = list(tb_drugs_unique.to_pydict().items())[0][1]
         tb_cells_unique_list = list(tb_cells_unique.to_pydict().items())[0][1]
+        t_unq_end = time.time()
+        print(f"Cylon Unique Time : {t_unq_end - t_unq_start} s ")
 
         self.drugs = tb_drugs_unique_list  # self.__drug_resp_df['DRUG_ID'].unique().tolist()
         self.cells = tb_cells_unique_list  # self.__drug_resp_df['CELLNAME'].unique().tolist()
@@ -214,6 +213,8 @@ class DrugRespDataset(data.Dataset):
         self.rnaseq_dim = self.__rnaseq_tb.column_count  # self.__rnaseq_df.shape[1]
         #assert self.__rnaseq_df.shape[1] == self.__rnaseq_tb.column_count
         # #self.__rnaseq_df.shape[1]
+        print(f"Drugs count : {len(tb_drugs_unique_list)}")
+        print(f"Cells count : {len(tb_cells_unique_list)}")
 
         print(f"2*** Drug resp shapes: {self.__drug_resp_tb.shape}")
         # print(f"2*** Drug feature shapes: {self.__drug_feature_df.shape},"
@@ -324,9 +325,11 @@ class DrugRespDataset(data.Dataset):
             encoded_data_src = data_src_dict[self.data_source]
 
             print(f"=====> encode_data_src {type(encoded_data_src)}")
-
+            t_filter_by_val = time.time()
             reduction_trim_tb = self.__drug_resp_tb['SOURCE'] == encoded_data_src
             reduction_trim_tb_list = list(reduction_trim_tb.to_pydict().items())[0][1]
+            t_filter_by_val = time.time() - t_filter_by_val
+            print(f"Time taken for filter data table {t_filter_by_val} s")
 
             # reduction_trim_series = self.__drug_resp_df['SOURCE'] == encoded_data_src
             # reduction_trim_list = reduction_trim_series.tolist()
@@ -347,8 +350,9 @@ class DrugRespDataset(data.Dataset):
             # print(f"2.$$$ self.__drug_resp_df.shape : {self.__drug_resp_df.shape} "
             #       f"{self.__drug_resp_tb.shape}, {t3 - t2}, {t4 - t3}")
             self.__drug_resp_tb = Table.from_pandas(ctx, self.__drug_resp_df)
+            t4 = time.time()
             print(f"3.$$$ self.__drug_resp_df.shape : {self.__drug_resp_df.shape} "
-                  f"{self.__drug_resp_tb.shape}, {t3 - t2}")
+                  f"{self.__drug_resp_tb.shape}, {t3 - t2} {t4-t3}")
 
         # Make sure that all three dataframes share the same drugs/cells
         logger.debug('Trimming dataframes on common cell lines and drugs ... ')
@@ -400,6 +404,7 @@ class DrugRespDataset(data.Dataset):
         drug_resp_tb_drugid_isin = self.__drug_resp_tb['DRUG_ID'].isin(drug_set)
         t_isin_time_op_1 = time.time() - t_isin_time_op_1
         print(f"Is in op 1 time: {t_isin_time_op_1} s")
+        t_isin_filter_cr = time.time()
         drug_resp_tb_cell_isin_np = np.array(list(drug_resp_tb_cell_isin.to_pydict().items())[0][1])
         drug_resp_tb_drugid_isin_np = np.array(
             list(drug_resp_tb_drugid_isin.to_pydict().items())[0][1])
@@ -407,6 +412,8 @@ class DrugRespDataset(data.Dataset):
         # drug_resp_df_loc_filters = (drug_resp_df_cell_isin) & (drug_resp_df_drugid_isin)
 
         drug_resp_tb_loc_filters = (drug_resp_tb_cell_isin_np) & (drug_resp_tb_drugid_isin_np)
+        t_isin_filter_cr = time.time() - t_isin_filter_cr
+        print(f"Isin Filter creation time : {t_isin_filter_cr} s")
 
         # assert drug_resp_df_loc_filters.tolist() == drug_resp_tb_loc_filters.tolist()
 
