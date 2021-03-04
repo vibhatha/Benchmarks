@@ -61,7 +61,7 @@ def get_drug_resp_df(data_root: str,
     Returns:
         pd.DataFrame: processed drug response dataframe.
     """
-
+    t_func_time = time.time()
     df_filename = 'drug_resp_df(scaling=%s).pkl' % grth_scaling
     df_path = os.path.join(data_root, PROC_FOLDER, df_filename)
 
@@ -117,6 +117,9 @@ def get_drug_resp_df(data_root: str,
     df[['SOURCE']] = df[['SOURCE']].astype(int_dtype)
     df[['LOG_CONCENTRATION', 'GROWTH']] = \
         df[['LOG_CONCENTRATION', 'GROWTH']].astype(float_dtype)
+    print(f"DataFrame shape: {df.shape}")
+    t_func_time = time.time() - t_func_time
+    print(f"Time Taken for get_drug_resp_df: {t_func_time} s")
     return df
 
 
