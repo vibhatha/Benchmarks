@@ -111,14 +111,16 @@ def get_drug_resp_df(data_root: str,
         t_e_load = time.time()
 
         print(f" Data Loading Time : {t_e_load - t_s_load} s")
-        print(f" DataFrame shape {tb.shape}")
-        print("Column names: ", tb.column_names)
+        #print(f" DataFrame shape {tb.shape}")
+        #print("Column names: ", tb.column_names)
 
         # Delete '-', which could be inconsistent between seq and meta
         #df['CELLNAME'] = df['CELLNAME'].str.replace('-', '')
         tb['CELLNAME'] = tb['CELLNAME'].applymap(lambda x: x.replace('-', ''))
-
+        t_2_pdf_start = time.time()
         df = tb.to_pandas()
+        t_2_pdf_end = time.time()
+        print(f"Pandas Conversion time: {t_2_pdf_end - t_2_pdf_start} s")
         # Encode data sources into numeric
         df['SOURCE'] = encode_label_to_int(data_root=data_root,
                                            dict_name='data_src_dict.txt',
@@ -494,11 +496,11 @@ if __name__ == '__main__':
                            grth_scaling='none').head())
     # Test statistic data loading functions
     print('=' * 80 + '\nDrug analysis dataframe head:')
-    print(get_drug_anlys_df(data_root='../../data/').head())
+    #print(get_drug_anlys_df(data_root='../../data/').head())
 
     # Plot histogram for drugs ('AVG_GRTH', 'AVG_CORR')
-    get_drug_stats_df(data_root='../../data/', grth_scaling='none'). \
-        hist(column=['AVG_GRTH', 'AVG_CORR'], figsize=(16, 9), bins=20)
+    # get_drug_stats_df(data_root='../../data/', grth_scaling='none'). \
+    #     hist(column=['AVG_GRTH', 'AVG_CORR'], figsize=(16, 9), bins=20)
     t2 = time.time()
     # plt.suptitle('Histogram of average growth and average correlation between '
     #              'concentration and growth of all drugs')
