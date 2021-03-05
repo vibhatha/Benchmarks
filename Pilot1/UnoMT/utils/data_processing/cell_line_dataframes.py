@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 
 from utils.data_processing.dataframe_scaling import scale_dataframe
-from utils.data_processing.label_encoding import encode_label_to_int
+from utils.data_processing.label_encoding import encode_label_to_int, encode_tb_label_to_int
 from utils.miscellaneous.file_downloading import download_files
 
 # pycylon imports start
@@ -211,16 +211,19 @@ def get_cl_meta_df(data_root: str,
         tb = tb[use_cols]
         t_e_load = time.time()
         tb[tb.column_names[0]] = tb[tb.column_names[0]].applymap(lambda x: x.replace('-', ''))
-        df = tb.to_pandas()
-        df = df.set_index(df.columns[0])
+        new_column_names = ['sample', 'data_src', 'site', 'type', 'category']
+        tb.rename(new_column_names)
+
         # Renaming columns for shorter and better column names
-        print(f"DataFrame shape {df.shape}")
+        print(f"DataFrame shape {tb.shape}")
         print(f"Data Loading time : {t_e_load - t_s_load}")
-        df.index.names = ['sample']
-        df.columns = ['data_src', 'site', 'type', 'category']
+        #print(df.index.names)
+        #df.index.names = ['sample']
+        #print(df.columns)
+        #df.columns = ['data_src', 'site', 'type', 'category']
 
         print("Cell DataFrame: ")
-        print(df)
+        print(tb)
 
         # Delete '-', which could be inconsistent between seq and meta
         #print(f"Before replacing str: {df.shape}")
@@ -228,14 +231,18 @@ def get_cl_meta_df(data_root: str,
         #print(f"After replacing str: {df.shape}")
 
         # Convert all the categorical data from text to numeric
-        columns = df.columns
+        columns = tb.column_names[1:]
         dict_names = [i + '_dict.txt' for i in columns]
         for col, dict_name in zip(columns, dict_names):
-            df[col] = encode_label_to_int(data_root=data_root,
+            labels = tb[col].to_numpy(zero_copy_only=False).flatten().tolist()
+            new_col = encode_tb_label_to_int(data_root=data_root,
                                           dict_name=dict_name,
-                                          labels=df[col])
+                                          labels=labels)
+            tb[col] = Table.from_list(ctx, ['col'], [new_col])
 
         # Convert data type into generic python types
+        df = tb.to_pandas()
+        df = df.set_index(df.columns[0])
         df = df.astype(int)
 
         # save to disk for future usage
