@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 
 from utils.data_processing.dataframe_scaling import scale_dataframe
-from utils.data_processing.label_encoding import encode_label_to_int, encode_tb_label_to_int
+from utils.data_processing.label_encoding import encode_label_to_int
 from utils.miscellaneous.file_downloading import download_files
 
 # pycylon imports start
@@ -235,7 +235,7 @@ def get_cl_meta_df(data_root: str,
         dict_names = [i + '_dict.txt' for i in columns]
         for col, dict_name in zip(columns, dict_names):
             labels = tb[col].to_numpy(zero_copy_only=False).flatten().tolist()
-            new_col = encode_tb_label_to_int(data_root=data_root,
+            new_col = encode_label_to_int(data_root=data_root,
                                           dict_name=dict_name,
                                           labels=labels)
             tb[col] = Table.from_list(ctx, ['col'], [new_col])
