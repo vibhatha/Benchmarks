@@ -110,20 +110,21 @@ def get_rna_seq_df(data_root: str,
 
         tb: Table = read_csv(ctx, os.path.join(data_root, RAW_FOLDER, raw_data_filename), csv_read_options)
         t_e_load = time.time()
+        tb[tb.column_names[0]] = tb[tb.column_names[0]].applymap(lambda x: x.replace('-', ''))
         print(f"Cylon Shape Before Duplicate Removal: {tb.shape}")
         tb = tb.unique([tb.column_names[0]], keep='first')
         print(f"Cylon Shape After Duplicate Removal: {tb.shape}")
         df = tb.to_pandas()
         df = df.set_index(df.columns[0])
         # # Delete '-', which could be inconsistent between seq and meta
-        df.index = df.index.str.replace('-', '')
+        #df.index = df.index.str.replace('-', '')
 
         # Note that after this name changing, some rows will have the same
         # name like 'GDSC.TT' and 'GDSC.T-T', but they are actually the same
         # Drop the duplicates for consistency
-        print(f"Pandas Shape Before Duplicate Removal: {df.shape}")
-        df = df[~df.index.duplicated(keep='first')]
-        print(f"Pandas Shape After Duplicate Removal: {df.shape}")
+        # print(f"Pandas Shape Before Duplicate Removal: {df.shape}")
+        # df = df[~df.index.duplicated(keep='first')]
+        # print(f"Pandas Shape After Duplicate Removal: {df.shape}")
 
         # Scaling the descriptor with given scaling method
         df = scale_dataframe(df, rnaseq_scaling)
@@ -209,6 +210,7 @@ def get_cl_meta_df(data_root: str,
                              csv_read_options)
         tb = tb[use_cols]
         t_e_load = time.time()
+        tb[tb.column_names[0]] = tb[tb.column_names[0]].applymap(lambda x: x.replace('-', ''))
         df = tb.to_pandas()
         df = df.set_index(df.columns[0])
         # Renaming columns for shorter and better column names
@@ -221,9 +223,9 @@ def get_cl_meta_df(data_root: str,
         print(df)
 
         # Delete '-', which could be inconsistent between seq and meta
-        print(f"Before replacing str: {df.shape}")
-        df.index = df.index.str.replace('-', '')
-        print(f"After replacing str: {df.shape}")
+        #print(f"Before replacing str: {df.shape}")
+        #df.index = df.index.str.replace('-', '')
+        #print(f"After replacing str: {df.shape}")
 
         # Convert all the categorical data from text to numeric
         columns = df.columns

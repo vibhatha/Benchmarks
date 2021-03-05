@@ -457,8 +457,8 @@ def get_drug_anlys_df(data_root: str):
 
         drugs = drug_stats_df.index
 
-        print("Index: ")
-        print(drugs)
+        #print("Index: ")
+        #print(drugs)
 
         avg_grth = drug_stats_df['AVG_GRTH'].values
         avg_corr = drug_stats_df['AVG_CORR'].values
@@ -476,9 +476,9 @@ def get_drug_anlys_df(data_root: str):
         df.set_index('DRUG_ID', inplace=True)
 
         print(f"drug_analysis_array: {drug_analysis_array.shape}")
-        print(drug_analysis_array)
-        print("response_dataframes.Index")
-        print(df.index)
+        #print(drug_analysis_array)
+        #print("response_dataframes.Index")
+        #print(df.index)
 
         # save to disk for future usage
         try:
