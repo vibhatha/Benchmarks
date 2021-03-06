@@ -92,38 +92,76 @@ def get_drug_fgpt_df(data_root: str,
         # Download the raw file if not exist
         download_files(filenames=[ECFP_FILENAME, PFP_FILENAME],
                        target_folder=os.path.join(data_root, RAW_FOLDER))
+        print(f"ecfp_df file: {os.path.join(data_root, RAW_FOLDER, ECFP_FILENAME)}")
         t_s_1_load = time.time()
-        ecfp_df = pd.read_csv(
-            os.path.join(data_root, RAW_FOLDER, ECFP_FILENAME),
-            sep='\t',
-            header=None,
-            index_col=0,
-            skiprows=[0, ])
+        # ecfp_df = pd.read_csv(
+        #     os.path.join(data_root, RAW_FOLDER, ECFP_FILENAME),
+        #     sep='\t',
+        #     #header=None,
+        #     #index_col=0,
+        #     skiprows=[0, ])
+        csv_read_options = CSVReadOptions().use_threads(True).block_size(1 << 30).with_delimiter(
+            "\t").skip_rows(1)
+        ecfp_tb: Table = read_csv(ctx, os.path.join(data_root, RAW_FOLDER, ECFP_FILENAME),
+                             csv_read_options)
         t_e_1_load = time.time()
+        col_names = [str(i) for i in range(0, ecfp_tb.shape[1])]
+        #ecfp_df.columns = col_names
+        ecfp_tb.rename(col_names)
+        ecfp_tb = ecfp_tb.add_prefix("1_")
+        #ecfp_df = ecfp_df.add_prefix("1_")
+        #ecfp_df.set_index(ecfp_df.columns[0], drop=True, inplace=True)
+        ecfp_tb.set_index(ecfp_tb.column_names[0], drop=True)
+        print("Head of ecfp_df")
+        #assert ecfp_df.index.values.tolist() == ecfp_tb.index.values.tolist()
 
-        print(f"DataFrame: ecfp_df = {ecfp_df.shape}")
+        print(f"DataFrame: ecfp_df = {ecfp_tb.shape}")
         print(f"Data Loadding ecfp_df: {t_e_1_load - t_s_1_load} s")
-        print(ecfp_df)
 
+        print(f"pfp_df file: {os.path.join(data_root, RAW_FOLDER, PFP_FILENAME)}")
         t_s_2_load = time.time()
-        pfp_df = pd.read_csv(
-            os.path.join(data_root, RAW_FOLDER, PFP_FILENAME),
-            sep='\t',
-            header=None,
-            index_col=0,
-            skiprows=[0, ])
+        # pfp_df = pd.read_csv(
+        #     os.path.join(data_root, RAW_FOLDER, PFP_FILENAME),
+        #     sep='\t',
+        #     #header=None,
+        #     #index_col=0,
+        #     skiprows=[0, ])
+        csv_read_options = CSVReadOptions().use_threads(True).block_size(1 << 30).with_delimiter(
+            "\t").skip_rows(1)
+        pfp_tb: Table = read_csv(ctx, os.path.join(data_root, RAW_FOLDER, PFP_FILENAME),
+                                  csv_read_options)
         t_e_2_load = time.time()
-        print(f"DataFrame: pfp_df = {pfp_df.shape}")
+        col_names = [str(i) for i in range(0, pfp_tb.shape[1])]
+        #pfp_df.columns = col_names
+        pfp_tb.rename(col_names)
+        pfp_tb = pfp_tb.add_prefix("2_")
+        #pfp_df = pfp_df.add_prefix("2_")
+        #pfp_df.set_index(pfp_df.columns[0], drop=True, inplace=True)
+        pfp_tb.set_index(pfp_tb.column_names[0], drop=True)
+        print(f"DataFrame: pfp_df = {pfp_tb.shape}")
         print(f"Data Loadding pfp_df: {t_e_2_load - t_s_2_load} s")
-        print(pfp_df)
+        print("Head of pfp_df")
 
-        ecfp_df = ecfp_df.add_prefix("1_")
-        pfp_df = pfp_df.add_prefix("2_")
+        #assert pfp_df.index.values.tolist() == pfp_tb.index.values.tolist()
 
-        df = pd.concat([ecfp_df, pfp_df], axis=1, join='inner')
+        #print(ecfp_df.index.values.tolist()[0:5], ecfp_tb.index.values.tolist()[0:5])
 
-        print(f"Concatenated Pdf : {df.shape}")
+        #print(ecfp_df.index.values.tolist()[0:5], ecfp_tb.index.values.tolist()[0:5])
+        t_concat = time.time()
+        #df = pd.concat([ecfp_df, pfp_df], axis=1, join='inner')
+        tb = Table.concat([ecfp_tb, pfp_tb], axis=1, join='inner')
+        t_concat = time.time() - t_concat
+        #print("idx_names: ", df.index.names)
+        #print(ecfp_df.index.values.tolist()[0:5], ecfp_tb.index.values.tolist()[0:5])
+        #print(df.index.values.tolist()[0:5], tb.index.values.tolist()[0:5])
+        #assert df.index.values.tolist().sort() == tb.index.values.tolist().sort()
+        tb.reset_index()
+        df = tb.to_pandas()
+        df.set_index(df.columns[0], inplace=True)
+        print(f"Concat Time : {t_concat} s")
+        print(f"Concatenated Pdf : {df.shape} {tb.shape}")
         print(df)
+        print("idx_names: ", df.index.names)
 
         # Convert data type into generic python types
         df = df.astype(int)
@@ -199,7 +237,7 @@ def get_drug_dscptr_df(data_root: str,
         df = pd.read_csv(
             os.path.join(data_root, RAW_FOLDER, DSCPTR_FILENAME),
             sep='\t',
-            header=0,
+            #header=0,
             # index_col=0, # DON"T DO INDEXING HERE
             na_values='na')
         t_e_load = time.time()
@@ -212,7 +250,7 @@ def get_drug_dscptr_df(data_root: str,
 
         print(f"Data Loading time : {t_e_load - t_s_load} s")
         print(f"DataFrame : {df.shape}")
-        print(df)
+
         print("DataFrame Index: ")
         index_values = df.index.tolist()
 
@@ -225,7 +263,6 @@ def get_drug_dscptr_df(data_root: str,
         tb.dropna(axis=1, inplace=True)
 
         df = tb.to_pandas()
-        print(df)
         df.set_index(df.columns[0], inplace=True)
 
         # Fill the rest of NaN with column means
@@ -297,7 +334,12 @@ def get_drug_feature_df(data_root: str,
                                             float_dtype=float_dtype)
         print(f">>>> get_drug_feature_df.Concat Columns: {len(drug_fgpt_df.columns)}, "
               f"{len(drug_dscptr_df.columns)}")
-        return pd.concat([drug_fgpt_df, drug_dscptr_df], axis=1, join='inner')
+        t_concat = time.time()
+        concat_df = pd.concat([drug_fgpt_df, drug_dscptr_df], axis=1, join='inner')
+        t_concat = time.time() - t_concat
+        print(f"Concat Time [drug_feature_usage={drug_feature_usage}] : {t_concat} s, "
+              f"shape[{drug_fgpt_df.shape}, {drug_dscptr_df.shape}:{concat_df.shape}]")
+        return concat_df
     elif drug_feature_usage == 'fingerprint':
         print(f"drug_feature_usage: {drug_feature_usage}")
         return get_drug_fgpt_df(data_root=data_root,
@@ -478,8 +520,8 @@ if __name__ == '__main__':
                               dscptr_scaling='std',
                               dscptr_nan_thresh=0.).head())
 
-    print('=' * 80 + '\nDrug target families dataframe head:')
-    print(get_drug_target_df(data_root='../../data/').head())
-
-    print('=' * 80 + '\nDrug target families dataframe head:')
-    print(get_drug_qed_df(data_root='../../data/', qed_scaling='none').head())
+    # print('=' * 80 + '\nDrug target families dataframe head:')
+    # print(get_drug_target_df(data_root='../../data/').head())
+    #
+    # print('=' * 80 + '\nDrug target families dataframe head:')
+    # print(get_drug_qed_df(data_root='../../data/', qed_scaling='none').head())
