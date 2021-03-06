@@ -234,25 +234,21 @@ def get_drug_dscptr_df(data_root: str,
                        target_folder=os.path.join(data_root, RAW_FOLDER))
         print(f"Data File path: {os.path.join(data_root, RAW_FOLDER, DSCPTR_FILENAME)}")
         t_s_load = time.time()
-        df = pd.read_csv(
-            os.path.join(data_root, RAW_FOLDER, DSCPTR_FILENAME),
-            sep='\t',
-            #header=0,
-            # index_col=0, # DON"T DO INDEXING HERE
-            na_values='na')
+        # df = pd.read_csv(
+        #     os.path.join(data_root, RAW_FOLDER, DSCPTR_FILENAME),
+        #     sep='\t',
+        #     #header=0,
+        #     # index_col=0, # DON"T DO INDEXING HERE
+        #     na_values='na')
+        csv_read_options = CSVReadOptions().use_threads(True).block_size(1 << 30).with_delimiter(
+            "\t").na_values(['na'])
+        tb: Table = read_csv(ctx, os.path.join(data_root, RAW_FOLDER, DSCPTR_FILENAME),
+                                  csv_read_options)
         t_e_load = time.time()
 
-        # print(artb)
-
-        tb: Table = Table.from_pandas(ctx, df)
-        print(f"Table shape : {tb.shape}")
-        print(tb.shape)
-
         print(f"Data Loading time : {t_e_load - t_s_load} s")
-        print(f"DataFrame : {df.shape}")
+        print(f"DataFrame : {tb.shape}")
 
-        print("DataFrame Index: ")
-        index_values = df.index.tolist()
 
         # Drop NaN values if the percentage of NaN exceeds nan_threshold
         # Note that columns (features) are dropped first, and then rows (drugs)
