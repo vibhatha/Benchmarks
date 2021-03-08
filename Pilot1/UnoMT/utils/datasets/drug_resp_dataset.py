@@ -179,14 +179,18 @@ class DrugRespDataset(data.Dataset):
         self.__drug_feature_tb = Table.from_pandas(ctx, self.__drug_feature_df, preserve_index=True)
         self.__drug_feature_tb.set_index(self.__drug_feature_tb.column_names[-1], drop=True)
 
-        self.__rnaseq_df = get_rna_seq_df(
+        self.__rnaseq_tb = get_rna_seq_df(
             data_root=data_root,
             rnaseq_feature_usage=rnaseq_feature_usage,
             rnaseq_scaling=rnaseq_scaling,
             float_dtype=float_dtype)
 
-        self.__rnaseq_tb = Table.from_pandas(ctx, self.__rnaseq_df, preserve_index=True)
-        self.__rnaseq_tb.set_index(self.__rnaseq_tb.column_names[-1], drop=True)
+        self.__rnaseq_tb.reset_index()
+        self.__rnaseq_df = self.__rnaseq_tb.to_pandas()
+        self.__rnaseq_df.set_index(self.__rnaseq_df.columns[0], drop=True, inplace=True)
+        self.__rnaseq_tb.set_index(self.__rnaseq_tb.column_names[0], drop=True)
+        #self.__rnaseq_tb = Table.from_pandas(ctx, self.__rnaseq_df, preserve_index=True)
+        #self.__rnaseq_tb.set_index(self.__rnaseq_tb.column_names[-1], drop=True)
 
         # Train/validation split ##############################################
         print(f"Loaded Drug Resp DF Original Amount : {self.__drug_resp_tb.shape}")

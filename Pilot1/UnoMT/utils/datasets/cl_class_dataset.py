@@ -111,12 +111,15 @@ class CLClassDataset(data.Dataset):
         self.__validation_ratio = validation_ratio
 
         # Load all dataframes #################################################
-        self.__rnaseq_df = get_rna_seq_df(
+        self.__rnaseq_tb = get_rna_seq_df(
             data_root=data_root,
             rnaseq_feature_usage=rnaseq_feature_usage,
             rnaseq_scaling=rnaseq_scaling,
             float_dtype=float_dtype)
         t_concat = time.time()
+        self.__rnaseq_tb.reset_index()
+        self.__rnaseq_df = self.__rnaseq_tb.to_pandas()
+        self.__rnaseq_df.set_index(self.__rnaseq_df.columns[0], drop=True, inplace=True)
         self.__cl_meta_df = get_cl_meta_df(
             data_root=data_root,
             int_dtype=int_dtype)

@@ -314,10 +314,14 @@ def get_gene_encoder(
                          rnaseq_feature_usage, rnaseq_scaling)
     gene_encoder_path = os.path.join(model_folder, gene_encoder_name)
 
-    rna_seq_df = get_rna_seq_df(data_root=data_root,
+    rna_seq_tb = get_rna_seq_df(data_root=data_root,
                                 rnaseq_feature_usage=rnaseq_feature_usage,
                                 rnaseq_scaling=rnaseq_scaling)
-    rna_seq_df.drop_duplicates(inplace=True)
+
+
+    rna_seq_tb.reset_index()
+    rna_seq_df = rna_seq_tb.to_pandas()
+    rna_seq_df.set_index(rna_seq_df.columns[0], drop=True, inplace=True)
 
     return get_encoder(
         model_path=gene_encoder_path,

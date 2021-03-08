@@ -114,8 +114,9 @@ def get_rna_seq_df(data_root: str,
         print(f"Cylon Shape Before Duplicate Removal: {tb.shape}")
         tb = tb.unique([tb.column_names[0]], keep='first')
         print(f"Cylon Shape After Duplicate Removal: {tb.shape}")
-        df = tb.to_pandas()
-        df = df.set_index(df.columns[0])
+        tb.set_index(tb.column_names[0], drop=True)
+        df1 = tb.to_pandas()
+        #df1.set_index(df1.columns[0], inplace=True)
         # # Delete '-', which could be inconsistent between seq and meta
         #df.index = df.index.str.replace('-', '')
 
@@ -127,11 +128,19 @@ def get_rna_seq_df(data_root: str,
         # print(f"Pandas Shape After Duplicate Removal: {df.shape}")
 
         # Scaling the descriptor with given scaling method
+        print("Prior Index: ", tb.index.index_values[0:10], tb.shape, df1.shape)
+        index_values = tb.index.index_values
+        df = tb.to_pandas()
+        #df.set_index(tb.index.index_values, inplace=True)
         df = scale_dataframe(df, rnaseq_scaling)
+        print("Shape after scale: ", df.shape)
+        tb = Table.from_pandas(ctx, df)
+        tb.set_index(index_values)
+        print("Post Index: ", tb.index.index_values[0:10], df.index.values.tolist()[0:10])
 
         # Convert data type into generic python types
-        df = df.astype(float)
-
+        #df = df.astype(float)
+        tb = tb.astype(float)
         # save to disk for future usage
         try:
             os.makedirs(os.path.join(data_root, PROC_FOLDER))
@@ -141,11 +150,13 @@ def get_rna_seq_df(data_root: str,
         #df.to_pickle(df_path)
         print(f"Data Loading time : {t_e_load - t_s_load}")
     # Convert the dtypes for a more efficient, compact dataframe ##############
-    df = df.astype(float_dtype)
+    #df = df.astype(float_dtype)
+    tb = tb.astype('float32')
+
     t_end = time.time()
 
     print(f"Total time for get_rna_seq_df : {t_end - t_start} s")
-    return df
+    return tb
 
 
 def get_cl_meta_df(data_root: str,
@@ -266,9 +277,11 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
     t1 = time.time()
     print('=' * 80 + '\nRNA sequence dataframe head:')
-    print(get_rna_seq_df(data_root='../../data/',
+    rna_seq_df = get_rna_seq_df(data_root='../../data/',
                          rnaseq_feature_usage='source_scale',
-                         rnaseq_scaling='std').head())
+                         rnaseq_scaling='std')
+    df = rna_seq_df.to_pandas()
+    print(df.head())
 
     print('=' * 80 + '\nCell line metadata dataframe head:')
     print(get_cl_meta_df(data_root='../../data/').head())
