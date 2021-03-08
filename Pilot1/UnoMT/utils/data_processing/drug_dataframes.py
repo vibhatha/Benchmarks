@@ -103,17 +103,17 @@ def get_drug_fgpt_df(data_root: str,
         csv_read_options = CSVReadOptions().use_threads(True).block_size(1 << 30).with_delimiter(
             "\t").skip_rows(1)
         ecfp_tb: Table = read_csv(ctx, os.path.join(data_root, RAW_FOLDER, ECFP_FILENAME),
-                             csv_read_options)
+                                  csv_read_options)
         t_e_1_load = time.time()
         col_names = [str(i) for i in range(0, ecfp_tb.shape[1])]
-        #ecfp_df.columns = col_names
+        # ecfp_df.columns = col_names
         ecfp_tb.rename(col_names)
         ecfp_tb = ecfp_tb.add_prefix("1_")
-        #ecfp_df = ecfp_df.add_prefix("1_")
-        #ecfp_df.set_index(ecfp_df.columns[0], drop=True, inplace=True)
+        # ecfp_df = ecfp_df.add_prefix("1_")
+        # ecfp_df.set_index(ecfp_df.columns[0], drop=True, inplace=True)
         ecfp_tb.set_index(ecfp_tb.column_names[0], drop=True)
         print("Head of ecfp_df")
-        #assert ecfp_df.index.values.tolist() == ecfp_tb.index.values.tolist()
+        # assert ecfp_df.index.values.tolist() == ecfp_tb.index.values.tolist()
 
         print(f"DataFrame: ecfp_df = {ecfp_tb.shape}")
         print(f"Data Loadding ecfp_df: {t_e_1_load - t_s_1_load} s")
@@ -129,32 +129,33 @@ def get_drug_fgpt_df(data_root: str,
         csv_read_options = CSVReadOptions().use_threads(True).block_size(1 << 30).with_delimiter(
             "\t").skip_rows(1)
         pfp_tb: Table = read_csv(ctx, os.path.join(data_root, RAW_FOLDER, PFP_FILENAME),
-                                  csv_read_options)
+                                 csv_read_options)
         t_e_2_load = time.time()
         col_names = [str(i) for i in range(0, pfp_tb.shape[1])]
-        #pfp_df.columns = col_names
+        # pfp_df.columns = col_names
         pfp_tb.rename(col_names)
         pfp_tb = pfp_tb.add_prefix("2_")
-        #pfp_df = pfp_df.add_prefix("2_")
-        #pfp_df.set_index(pfp_df.columns[0], drop=True, inplace=True)
+        # pfp_df = pfp_df.add_prefix("2_")
+        # pfp_df.set_index(pfp_df.columns[0], drop=True, inplace=True)
         pfp_tb.set_index(pfp_tb.column_names[0], drop=True)
         print(f"DataFrame: pfp_df = {pfp_tb.shape}")
         print(f"Data Loadding pfp_df: {t_e_2_load - t_s_2_load} s")
         print("Head of pfp_df")
 
-        #assert pfp_df.index.values.tolist() == pfp_tb.index.values.tolist()
+        # assert pfp_df.index.values.tolist() == pfp_tb.index.values.tolist()
 
-        #print(ecfp_df.index.values.tolist()[0:5], ecfp_tb.index.values.tolist()[0:5])
+        # print(ecfp_df.index.values.tolist()[0:5], ecfp_tb.index.values.tolist()[0:5])
 
-        #print(ecfp_df.index.values.tolist()[0:5], ecfp_tb.index.values.tolist()[0:5])
+        # print(ecfp_df.index.values.tolist()[0:5], ecfp_tb.index.values.tolist()[0:5])
         t_concat = time.time()
-        #df = pd.concat([ecfp_df, pfp_df], axis=1, join='inner')
+        # df = pd.concat([ecfp_df, pfp_df], axis=1, join='inner')
         tb = Table.concat([ecfp_tb, pfp_tb], axis=1, join='inner')
         t_concat = time.time() - t_concat
-        #print("idx_names: ", df.index.names)
-        #print(ecfp_df.index.values.tolist()[0:5], ecfp_tb.index.values.tolist()[0:5])
-        #print(df.index.values.tolist()[0:5], tb.index.values.tolist()[0:5])
-        #assert df.index.values.tolist().sort() == tb.index.values.tolist().sort()
+        tb = tb.astype(int)
+        # print("idx_names: ", df.index.names)
+        # print(ecfp_df.index.values.tolist()[0:5], ecfp_tb.index.values.tolist()[0:5])
+        # print(df.index.values.tolist()[0:5], tb.index.values.tolist()[0:5])
+        # assert df.index.values.tolist().sort() == tb.index.values.tolist().sort()
         tb.reset_index()
         df = tb.to_pandas()
         df.set_index(df.columns[0], inplace=True)
@@ -164,7 +165,7 @@ def get_drug_fgpt_df(data_root: str,
         print("idx_names: ", df.index.names)
 
         # Convert data type into generic python types
-        df = df.astype(int)
+        # df = df.astype(int)
 
         print(f"DataFrame Types: {df.dtypes}")
 
@@ -243,12 +244,11 @@ def get_drug_dscptr_df(data_root: str,
         csv_read_options = CSVReadOptions().use_threads(True).block_size(1 << 30).with_delimiter(
             "\t").na_values(['na'])
         tb: Table = read_csv(ctx, os.path.join(data_root, RAW_FOLDER, DSCPTR_FILENAME),
-                                  csv_read_options)
+                             csv_read_options)
         t_e_load = time.time()
 
         print(f"Data Loading time : {t_e_load - t_s_load} s")
         print(f"DataFrame : {tb.shape}")
-
 
         # Drop NaN values if the percentage of NaN exceeds nan_threshold
         # Note that columns (features) are dropped first, and then rows (drugs)
@@ -391,29 +391,44 @@ def get_drug_prop_df(data_root: str):
         # Download the raw file if not exist
         download_files(filenames=DRUG_PROP_FILENAME,
                        target_folder=os.path.join(data_root, RAW_FOLDER))
+        use_cols = ['anl_cpd_id', 'qed_weighted', 'target_families']
+        # df = pd.read_csv(
+        #     raw_file_path,
+        #     sep='\t',
+        #     header=0,
+        #     index_col=0,
+        #     usecols=use_cols)
 
-        df = pd.read_csv(
-            raw_file_path,
-            sep='\t',
-            header=0,
-            index_col=0,
-            usecols=['anl_cpd_id', 'qed_weighted', 'target_families', ])
+        csv_read_options = CSVReadOptions().use_threads(True).block_size(1 << 30).with_delimiter(
+            "\t").use_cols(use_cols)
+        tb: Table = read_csv(ctx, raw_file_path, csv_read_options)
 
-        print(f"DataFrame : {df.shape}")
-        print("Index: ")
-        print(df.index)
+        # print(f"DataFrame : {df.shape}")
+        # print("Index: ")
+        # print(df.index)
 
         # Change index name for consistency across the whole program
-        df.index.names = ['DRUG_ID']
-        df.columns = ['QED', 'TARGET', ]
+        # df.index.names = ['DRUG_ID']
+        # df.columns = ['QED', 'TARGET', ]
+        new_column_names = ['DRUG_ID', 'QED', 'TARGET']
+        tb.rename(new_column_names)
+        print(tb)
 
-        print(f"df index names: {df.index.names}")
-        print(f"df.columns: {df.columns}")
+        # print(f"df index names: {df.index.names}")
+        # print(f"df.columns: {df.columns}")
 
         # Convert data type into generic python types
-        df[['QED']] = df[['QED']].astype(float)
-        df[['TARGET']] = df[['TARGET']].astype(str)
-
+        # df[['QED']] = df[['QED']].astype(float)
+        # df[['TARGET']] = df[['TARGET']].astype(str)
+        # tb[['QED']] = tb[['QED']].astype(float)
+        # tb[['TARGET']] = tb[['TARGET']].astype(str)
+        print(tb.to_arrow(), tb.shape)
+        print(tb.column_names)
+        tb = tb[tb['QED'] != '']
+        tb.set_index(tb.column_names[0], drop=True)
+        tb = tb.astype({'QED': float, 'TARGET': str})
+        print(tb.to_arrow(), tb.shape)
+        print(tb)
         # save to disk for future usage
         try:
             os.makedirs(os.path.join(data_root, PROC_FOLDER))
@@ -421,6 +436,9 @@ def get_drug_prop_df(data_root: str):
             pass
         # df.to_pickle(df_path)
     print("=" * 80)
+    tb.reset_index()
+    df = tb.to_pandas()
+    df.set_index(df.columns[0], inplace=True, drop=True)
     return df
 
 
@@ -445,7 +463,6 @@ def get_drug_target_df(data_root: str,
     print("=" * 80)
     print("get_drug_target_df")
     df = get_drug_prop_df(data_root=data_root)[['TARGET']]
-    tb = Table.from_pandas(ctx, df)
 
     # Only take the rows with specific target families for classification
     df = df[df['TARGET'].isin(TGT_FAMS)][['TARGET']]
