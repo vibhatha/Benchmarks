@@ -412,7 +412,6 @@ def get_drug_prop_df(data_root: str):
         # df.columns = ['QED', 'TARGET', ]
         new_column_names = ['DRUG_ID', 'QED', 'TARGET']
         tb.rename(new_column_names)
-        print(tb)
 
         # print(f"df index names: {df.index.names}")
         # print(f"df.columns: {df.columns}")
@@ -422,8 +421,6 @@ def get_drug_prop_df(data_root: str):
         # df[['TARGET']] = df[['TARGET']].astype(str)
         # tb[['QED']] = tb[['QED']].astype(float)
         # tb[['TARGET']] = tb[['TARGET']].astype(str)
-        print(tb.to_arrow(), tb.shape)
-        print(tb.column_names)
         tb = tb[tb['QED'] != '']
         tb.set_index(tb.column_names[0], drop=True)
         tb = tb.astype({'QED': float, 'TARGET': str})
