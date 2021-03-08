@@ -20,7 +20,7 @@ from utils.data_processing.cell_line_dataframes import get_rna_seq_df, \
     get_cl_meta_df
 from utils.data_processing.label_encoding import encode_int_to_onehot, \
     get_label_dict
-
+import time
 logger = logging.getLogger(__name__)
 
 
@@ -116,10 +116,12 @@ class CLClassDataset(data.Dataset):
             rnaseq_feature_usage=rnaseq_feature_usage,
             rnaseq_scaling=rnaseq_scaling,
             float_dtype=float_dtype)
-
+        t_concat = time.time()
         self.__cl_meta_df = get_cl_meta_df(
             data_root=data_root,
             int_dtype=int_dtype)
+        t_concat = time.time() - t_concat
+        print(f"Concat Time {t_concat} s")
 
         # Put all the sequence in one column as list and specify dtype
         self.__rnaseq_df['seq'] = \
@@ -159,6 +161,7 @@ class CLClassDataset(data.Dataset):
         # Public attributes ###################################################
         self.cells = self.__cl_df.index.tolist()
         self.num_cells = self.__cl_df.shape[0]
+
         self.rnaseq_dim = len(self.__cl_df.iloc[0]['seq'])
 
         # Clear the dataframes ################################################

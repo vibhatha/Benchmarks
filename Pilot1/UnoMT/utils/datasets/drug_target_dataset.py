@@ -17,6 +17,7 @@ from sklearn.model_selection import train_test_split
 
 from utils.data_processing.drug_dataframes import get_drug_target_df, \
     get_drug_feature_df
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -68,10 +69,12 @@ class DrugTargetDataset(data.Dataset):
             list(map(float_dtype, self.__drug_feature_df.values.tolist()))
 
         # Join the drug features with drug target family labels
+        t_concat = time.time()
         self.__drug_target_df = pd.concat(
             [self.__drug_target_df, self.__drug_feature_df[['feature']]],
             axis=1, join='inner')
-
+        t_concat = time.time() - t_concat
+        print(f"Concat Time : {t_concat} s")
         # Train/validation split ##############################################
         self.__split_drug_resp()
 
