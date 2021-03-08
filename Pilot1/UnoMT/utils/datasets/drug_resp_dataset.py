@@ -552,14 +552,18 @@ class DrugRespDataset(data.Dataset):
         t_load_drug_start = time.time()
         drug_analys_df = get_drug_anlys_df(self.__data_root)
         t_load_drug_end = time.time()
-        cl_meta_df = get_cl_meta_df(self.__data_root)
+        cl_meta_tb = get_cl_meta_df(self.__data_root)
+        cl_meta_tb.reset_index()
+        cl_meta_df = cl_meta_tb.to_pandas()
+        cl_meta_df.set_index(cl_meta_df.columns[0], drop=True, inplace=True)
+        cl_meta_tb.set_index(cl_meta_tb.column_names[0], drop=True)
         t_load_cl_meta_end = time.time()
 
         drug_analys_tb = Table.from_pandas(ctx, drug_analys_df, preserve_index=True)
         drug_analys_tb.set_index(drug_analys_tb.column_names[-1], drop=True)
 
-        cl_meta_tb = Table.from_pandas(ctx, cl_meta_df, preserve_index=True)
-        cl_meta_tb.set_index(cl_meta_tb.column_names[-1], drop=True)
+        #cl_meta_tb = Table.from_pandas(ctx, cl_meta_df, preserve_index=True)
+        #cl_meta_tb.set_index(cl_meta_tb.column_names[-1], drop=True)
 
         assert drug_analys_tb.index.values.tolist() == drug_analys_df.index.values.tolist()
         assert cl_meta_tb.index.values.tolist() == cl_meta_df.index.values.tolist()

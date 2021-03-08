@@ -120,9 +120,12 @@ class CLClassDataset(data.Dataset):
         self.__rnaseq_tb.reset_index()
         self.__rnaseq_df = self.__rnaseq_tb.to_pandas()
         self.__rnaseq_df.set_index(self.__rnaseq_df.columns[0], drop=True, inplace=True)
-        self.__cl_meta_df = get_cl_meta_df(
+        self.__cl_meta_tb = get_cl_meta_df(
             data_root=data_root,
             int_dtype=int_dtype)
+        self.__cl_meta_tb.reset_index()
+        self.__cl_meta_df = self.__cl_meta_tb.to_pandas()
+        self.__cl_meta_df.set_index(self.__cl_meta_df.columns[0], drop=True, inplace=True)
         t_concat = time.time() - t_concat
         print(f"Concat Time {t_concat} s")
 

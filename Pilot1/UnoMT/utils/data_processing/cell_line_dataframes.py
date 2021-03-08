@@ -252,9 +252,10 @@ def get_cl_meta_df(data_root: str,
             tb[col] = Table.from_list(ctx, ['col'], [new_col])
 
         # Convert data type into generic python types
-        df = tb.to_pandas()
-        df = df.set_index(df.columns[0])
-        df = df.astype(int)
+        #df = tb.to_pandas()
+        #df = df.set_index(df.columns[0])
+        tb.set_index(tb.column_names[0], drop=True)
+        tb = tb.astype(int)
 
         # save to disk for future usage
         try:
@@ -265,11 +266,11 @@ def get_cl_meta_df(data_root: str,
         # avoid loading from pickle to test cylon integration
         #df.to_pickle(df_path)
 
-    df = df.astype(int_dtype)
+    tb = tb.astype('int8')
     t_end = time.time()
     print(f"Total time taken get_cl_meta_df : {t_end - t_start} s")
     print("=" * 80)
-    return df
+    return tb
 
 
 if __name__ == '__main__':
@@ -284,6 +285,7 @@ if __name__ == '__main__':
     print(df.head())
 
     print('=' * 80 + '\nCell line metadata dataframe head:')
-    print(get_cl_meta_df(data_root='../../data/').head())
+    cl_meta_df = get_cl_meta_df(data_root='../../data/').to_pandas()
+    print(cl_meta_df.head())
     t2 = time.time()
     print(f"Time Taken : {t2-t1} s")
