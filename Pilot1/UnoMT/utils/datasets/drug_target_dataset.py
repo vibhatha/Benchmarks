@@ -52,13 +52,19 @@ class DrugTargetDataset(data.Dataset):
         self.__validation_ratio = validation_ratio
 
         # Load all dataframes #################################################
-        self.__drug_feature_df = get_drug_feature_df(
+        self.__drug_feature_tb = get_drug_feature_df(
             data_root=data_root,
             drug_feature_usage=drug_feature_usage,
             dscptr_scaling=dscptr_scaling,
             dscptr_nan_thresh=dscptr_nan_threshold,
             int_dtype=int_dtype,
             float_dtype=float_dtype)
+
+        self.__drug_feature_tb.reset_index()
+
+        self.__drug_feature_df = self.__drug_feature_tb.to_pandas()
+        self.__drug_feature_df.set_index(self.__drug_feature_df.columns[0], drop=True, inplace=True)
+        self.__drug_feature_tb.set_index(self.__drug_feature_tb.column_names[0], drop=True)
 
         self.__drug_target_df = get_drug_target_df(
             data_root=data_root,

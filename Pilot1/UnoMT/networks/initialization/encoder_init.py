@@ -414,11 +414,16 @@ def get_drug_encoder(
                          dscptr_nan_threshold,)
     drug_encoder_path = os.path.join(model_folder, drug_encoder_name)
 
-    drug_feature_df = get_drug_feature_df(
+    drug_feature_tb = get_drug_feature_df(
         data_root=data_root,
         drug_feature_usage=drug_feature_usage,
         dscptr_scaling=dscptr_scaling,
         dscptr_nan_thresh=dscptr_nan_threshold)
+
+    drug_feature_tb.reset_index()
+    drug_feature_df = drug_feature_tb.to_pandas()
+    drug_feature_df.set_index(drug_feature_df.columns[0], drop=True, inplace=True)
+    drug_feature_tb.set_index(drug_feature_tb.column_names[0], drop=True)
 
     return get_encoder(
         model_path=drug_encoder_path,

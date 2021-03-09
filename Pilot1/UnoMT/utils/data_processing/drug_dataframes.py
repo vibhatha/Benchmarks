@@ -156,18 +156,18 @@ def get_drug_fgpt_df(data_root: str,
         # print(ecfp_df.index.values.tolist()[0:5], ecfp_tb.index.values.tolist()[0:5])
         # print(df.index.values.tolist()[0:5], tb.index.values.tolist()[0:5])
         # assert df.index.values.tolist().sort() == tb.index.values.tolist().sort()
-        tb.reset_index()
-        df = tb.to_pandas()
-        df.set_index(df.columns[0], inplace=True)
+        #tb.reset_index()
+        #df = tb.to_pandas()
+        #df.set_index(df.columns[0], inplace=True)
         print(f"Concat Time : {t_concat} s")
-        print(f"Concatenated Pdf : {df.shape} {tb.shape}")
-        print(df)
-        print("idx_names: ", df.index.names)
+        #print(f"Concatenated Pdf : {df.shape} {tb.shape}")
+        #print(df)
+        #print("idx_names: ", df.index.names)
 
         # Convert data type into generic python types
         # df = df.astype(int)
 
-        print(f"DataFrame Types: {df.dtypes}")
+        #print(f"DataFrame Types: {df.dtypes}")
 
         # save to disk for future usage
         try:
@@ -179,11 +179,12 @@ def get_drug_fgpt_df(data_root: str,
         # df.to_pickle(df_path)
 
     # Convert the dtypes for a more efficient, compact dataframe ##############
-    df = df.astype(int_dtype)
+    #df = df.astype(int_dtype)
+    tb = tb.astype('int8')
     t_end = time.time()
     print(f"Total time taken get_drug_fgpt_df : {t_end - t_start} s")
     print("=" * 80)
-    return df
+    return tb
 
 
 def get_drug_dscptr_df(data_root: str,
@@ -270,8 +271,12 @@ def get_drug_dscptr_df(data_root: str,
         # Scaling the descriptor with given scaling method
         df = scale_dataframe(df, dscptr_scaling)
 
+        tb = Table.from_pandas(ctx, df, preserve_index=True)
+        tb.set_index(tb.column_names[-1], drop=True)
+
         # Convert data type into generic python types
-        df = df.astype(float)
+        #df = df.astype(float)
+        tb = tb.astype(float)
 
         # save to disk for future usage
         try:
@@ -281,12 +286,13 @@ def get_drug_dscptr_df(data_root: str,
         # df.to_pickle(df_path)
 
     # Convert the dtypes for a more efficient, compact dataframe ##############
-    df = df.astype(float_dtype)
+    #df = df.astype(float_dtype)
+    tb = tb.astype('float32')
     # print(f">>>> df.index : {df.index}")
     t_end = time.time()
     print(f"Total Time taken get_drug_dscptr_df: {t_end - t_start} s")
     print("=" * 80)
-    return df
+    return tb
 
 
 def get_drug_feature_df(data_root: str,
@@ -321,21 +327,30 @@ def get_drug_feature_df(data_root: str,
     if drug_feature_usage == 'both':
         print(f"drug_feature_usage: {drug_feature_usage}")
         print("=" * 80)
-        drug_fgpt_df = get_drug_fgpt_df(data_root=data_root,
+        drug_fgpt_tb = get_drug_fgpt_df(data_root=data_root,
                                         int_dtype=int_dtype)
+        drug_fgpt_tb.reset_index()
+        drug_fgpt_df = drug_fgpt_tb.to_pandas()
+        drug_fgpt_df.set_index(drug_fgpt_df.columns[0], drop=True, inplace=True)
+        drug_fgpt_tb.set_index(drug_fgpt_tb.column_names[0], drop=True)
 
-        drug_dscptr_df = get_drug_dscptr_df(data_root=data_root,
+        drug_dscptr_tb = get_drug_dscptr_df(data_root=data_root,
                                             dscptr_scaling=dscptr_scaling,
                                             dscptr_nan_thresh=dscptr_nan_thresh,
                                             float_dtype=float_dtype)
+        drug_dscptr_tb.reset_index()
+        drug_dscptr_df = drug_dscptr_tb.to_pandas()
+        drug_dscptr_df.set_index(drug_dscptr_df.columns[0], drop=True, inplace=True)
+        drug_dscptr_tb.set_index(drug_dscptr_tb.column_names[0], drop=True)
         print(f">>>> get_drug_feature_df.Concat Columns: {len(drug_fgpt_df.columns)}, "
               f"{len(drug_dscptr_df.columns)}")
         t_concat = time.time()
         concat_df = pd.concat([drug_fgpt_df, drug_dscptr_df], axis=1, join='inner')
+        concat_tb = Table.concat([drug_fgpt_tb, drug_dscptr_tb], axis=1, join='inner')
         t_concat = time.time() - t_concat
         print(f"Concat Time [drug_feature_usage={drug_feature_usage}] : {t_concat} s, "
               f"shape[{drug_fgpt_df.shape}, {drug_dscptr_df.shape}:{concat_df.shape}]")
-        return concat_df
+        return concat_tb
     elif drug_feature_usage == 'fingerprint':
         print(f"drug_feature_usage: {drug_feature_usage}")
         return get_drug_fgpt_df(data_root=data_root,
@@ -525,10 +540,12 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
 
     print('=' * 80 + '\nDrug feature dataframe head:')
-    print(get_drug_feature_df(data_root='../../data/',
+    drug_feature_tb = get_drug_feature_df(data_root='../../data/',
                               drug_feature_usage='both',
                               dscptr_scaling='std',
-                              dscptr_nan_thresh=0.).head())
+                              dscptr_nan_thresh=0.)
+    drug_feature_df = drug_feature_tb.to_pandas()
+    print(drug_feature_df.head())
 
     # print('=' * 80 + '\nDrug target families dataframe head:')
     # print(get_drug_target_df(data_root='../../data/').head())

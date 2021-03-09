@@ -168,7 +168,7 @@ class DrugRespDataset(data.Dataset):
 
         self.__drug_resp_tb = Table.from_pandas(ctx, self.__drug_resp_df)
 
-        self.__drug_feature_df = get_drug_feature_df(
+        self.__drug_feature_tb = get_drug_feature_df(
             data_root=data_root,
             drug_feature_usage=drug_feature_usage,
             dscptr_scaling=dscptr_scaling,
@@ -176,8 +176,8 @@ class DrugRespDataset(data.Dataset):
             int_dtype=int_dtype,
             float_dtype=float_dtype)
 
-        self.__drug_feature_tb = Table.from_pandas(ctx, self.__drug_feature_df, preserve_index=True)
-        self.__drug_feature_tb.set_index(self.__drug_feature_tb.column_names[-1], drop=True)
+        # self.__drug_feature_tb = Table.from_pandas(ctx, self.__drug_feature_df, preserve_index=True)
+        # self.__drug_feature_tb.set_index(self.__drug_feature_tb.column_names[-1], drop=True)
 
         self.__rnaseq_tb = get_rna_seq_df(
             data_root=data_root,
