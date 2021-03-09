@@ -345,11 +345,11 @@ def get_drug_feature_df(data_root: str,
         print(f">>>> get_drug_feature_df.Concat Columns: {len(drug_fgpt_df.columns)}, "
               f"{len(drug_dscptr_df.columns)}")
         t_concat = time.time()
-        concat_df = pd.concat([drug_fgpt_df, drug_dscptr_df], axis=1, join='inner')
+        #concat_df = pd.concat([drug_fgpt_df, drug_dscptr_df], axis=1, join='inner')
         concat_tb = Table.concat([drug_fgpt_tb, drug_dscptr_tb], axis=1, join='inner')
         t_concat = time.time() - t_concat
         print(f"Concat Time [drug_feature_usage={drug_feature_usage}] : {t_concat} s, "
-              f"shape[{drug_fgpt_df.shape}, {drug_dscptr_df.shape}:{concat_df.shape}]")
+              f"shape[{drug_fgpt_df.shape}, {drug_dscptr_df.shape}]")
         return concat_tb
     elif drug_feature_usage == 'fingerprint':
         print(f"drug_feature_usage: {drug_feature_usage}")
