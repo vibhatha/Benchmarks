@@ -160,13 +160,13 @@ class DrugRespDataset(data.Dataset):
         self.__disjoint_cells = disjoint_cells
 
         # Load all dataframes #################################################
-        self.__drug_resp_df = get_drug_resp_df(
+        self.__drug_resp_tb = get_drug_resp_df(
             data_root=data_root,
             grth_scaling=grth_scaling,
             int_dtype=int_dtype,
             float_dtype=float_dtype)
 
-        self.__drug_resp_tb = Table.from_pandas(ctx, self.__drug_resp_df)
+        self.__drug_resp_df = self.__drug_resp_tb.to_pandas()
 
         self.__drug_feature_tb = get_drug_feature_df(
             data_root=data_root,

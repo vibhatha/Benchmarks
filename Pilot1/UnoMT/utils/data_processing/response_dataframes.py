@@ -120,22 +120,31 @@ def get_drug_resp_df(data_root: str,
         tb['CELLNAME'] = tb['CELLNAME'].applymap(lambda x: x.replace('-', ''))
         t_str_replace_time = time.time() - t_str_replace_time
         print(f"Str replace time {t_str_replace_time} s")
-        t_2_pdf_start = time.time()
-        df = tb.to_pandas()
-        t_2_pdf_end = time.time()
-        print(f"Pandas Conversion time: {t_2_pdf_end - t_2_pdf_start} s")
+        # t_2_pdf_start = time.time()
+        # df = tb.to_pandas()
+        # t_2_pdf_end = time.time()
+        # print(f"Pandas Conversion time: {t_2_pdf_end - t_2_pdf_start} s")
         # Encode data sources into numeric
-        df['SOURCE'] = encode_label_to_int(data_root=data_root,
+        labels_list = tb['SOURCE'].to_numpy(zero_copy_only=False).flatten().tolist()
+        encoded_list = encode_label_to_int(data_root=data_root,
                                            dict_name='data_src_dict.txt',
-                                           labels=df['SOURCE'].tolist())
+                                           labels=labels_list)
+        tb['SOURCE'] = Table.from_list(ctx, ['SOURCE'], [encoded_list])
+        # df['SOURCE'] = encode_label_to_int(data_root=data_root,
+        #                                    dict_name='data_src_dict.txt',
+        #                                    labels=df['SOURCE'].tolist())
 
         # Scaling the growth with given scaling method
+        df = tb.to_pandas()
         df['GROWTH'] = scale_dataframe(df['GROWTH'], grth_scaling)
-
+        tb = Table.from_pandas(ctx, df)
         # Convert data type into generic python types
-        df[['SOURCE']] = df[['SOURCE']].astype(int)
-        df[['LOG_CONCENTRATION', 'GROWTH']] = \
-            df[['LOG_CONCENTRATION', 'GROWTH']].astype(float)
+        tb['SOURCE'] = tb['SOURCE'].astype(int)
+        tb['LOG_CONCENTRATION'] = tb['LOG_CONCENTRATION'].astype(float)
+        tb['GROWTH'] = tb['GROWTH'].astype(float)
+        # df[['SOURCE']] = df[['SOURCE']].astype(int)
+        # df[['LOG_CONCENTRATION', 'GROWTH']] = \
+        #     df[['LOG_CONCENTRATION', 'GROWTH']].astype(float)
 
         # save to disk for future usage
         try:
@@ -145,12 +154,15 @@ def get_drug_resp_df(data_root: str,
         #df.to_pickle(df_path)
 
     # Convert the dtypes for a more efficient, compact dataframe ##############
-    df[['SOURCE']] = df[['SOURCE']].astype(int_dtype)
-    df[['LOG_CONCENTRATION', 'GROWTH']] = \
-        df[['LOG_CONCENTRATION', 'GROWTH']].astype(float_dtype)
-    print(f"Data Frame size: {df.shape}")
+    tb['SOURCE'] = tb['SOURCE'].astype('int8')
+    tb['LOG_CONCENTRATION'] = tb['LOG_CONCENTRATION'].astype('float32')
+    tb['GROWTH'] = tb['GROWTH'].astype('float32')
+    # df[['SOURCE']] = df[['SOURCE']].astype(int_dtype)
+    # df[['LOG_CONCENTRATION', 'GROWTH']] = \
+    #     df[['LOG_CONCENTRATION', 'GROWTH']].astype(float_dtype)
+    print(f"Data Frame size: {tb.shape}")
     print("=" * 80)
-    return df
+    return tb
 
 
 def get_combo_stats_df(data_root: str,
@@ -195,11 +207,11 @@ def get_combo_stats_df(data_root: str,
 
         # Load the whole drug response dataframe and create a combo column
         # Use generic python dtypes to minimize the error during processing
-        drug_resp_df = get_drug_resp_df(data_root=data_root,
+        drug_resp_tb = get_drug_resp_df(data_root=data_root,
                                         grth_scaling=grth_scaling,
                                         int_dtype=int,
                                         float_dtype=float)
-
+        drug_resp_df = drug_resp_tb.to_pandas()
         # logger.debug('Limiting the dataframe with drugs and cell lines ... ')
         # drug_resp_df = drug_resp_df.loc[
         #     (drug_resp_df['CELLNAME'].isin(get_all_cells(data_root))) &
@@ -496,8 +508,10 @@ if __name__ == '__main__':
 
     print('=' * 80 + '\nDrug response dataframe head:')
     t1 = time.time()
-    print(get_drug_resp_df(data_root='../../data/',
-                           grth_scaling='none').head())
+    drug_resp_tb = get_drug_resp_df(data_root='../../data/',
+                           grth_scaling='none')
+    drug_resp_df = drug_resp_tb.to_pandas()
+    print(drug_resp_df.head())
     # Test statistic data loading functions
     print('=' * 80 + '\nDrug analysis dataframe head:')
     #print(get_drug_anlys_df(data_root='../../data/').head())
