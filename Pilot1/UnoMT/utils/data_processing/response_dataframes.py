@@ -281,10 +281,15 @@ def get_combo_stats_df(data_root: str,
         # Convert ths list of lists to dataframe
         cols = ['DRUG_ID', 'CELLNAME', 'NUM_REC', 'AVG_GRTH', 'CORR']
         df = pd.DataFrame(combo_stats, columns=cols)
-
+        tb = Table.from_pandas(ctx, df)
+        print(f">>>1 get_combo_stats_df.DRUG_ID "
+              f"{tb['DRUG_ID'].to_numpy(zero_copy_only=False).tolist()[0:5]}")
         # Convert data type into generic python types
-        df[['NUM_REC']] = df[['NUM_REC']].astype(int)
-        df[['AVG_GRTH', 'CORR']] = df[['AVG_GRTH', 'CORR']].astype(float)
+        # df[['NUM_REC']] = df[['NUM_REC']].astype(int)
+        # df[['AVG_GRTH', 'CORR']] = df[['AVG_GRTH', 'CORR']].astype(float)
+        tb['NUM_REC'] = tb['NUM_REC'].astype(int)
+        tb['AVG_GRTH'] = tb['AVG_GRTH'].astype(float)
+        tb['CORR'] = tb['CORR'].astype(float)
 
         # save to disk for future usage
         try:
@@ -294,10 +299,15 @@ def get_combo_stats_df(data_root: str,
         #df.to_pickle(df_path)
 
     # Convert the dtypes for a more efficient, compact dataframe ##############
-    df[['NUM_REC']] = df[['NUM_REC']].astype(int_dtype)
-    df[['AVG_GRTH', 'CORR']] = df[['AVG_GRTH', 'CORR']].astype(float_dtype)
+    # df[['NUM_REC']] = df[['NUM_REC']].astype(int_dtype)
+    # df[['AVG_GRTH', 'CORR']] = df[['AVG_GRTH', 'CORR']].astype(float_dtype)
+    tb['NUM_REC'] = tb['NUM_REC'].astype(int)
+    tb['AVG_GRTH'] = tb['AVG_GRTH'].astype(float)
+    tb['CORR'] = tb['CORR'].astype(float)
+    print(f">>>2 get_combo_stats_df.DRUG_ID "
+          f"{tb['DRUG_ID'].to_numpy(zero_copy_only=False).tolist()[0:5]}")
     print("=" * 80)
-    return df
+    return tb
 
 
 def get_drug_stats_df(data_root: str,
@@ -354,7 +364,12 @@ def get_drug_stats_df(data_root: str,
 
         # Each row in the combo stats dataframe contains:
         # ['DRUG_ID', 'CELLNAME','NUM_REC', 'AVG_GRTH', 'CORR']
-        combo_stats_array = combo_stats_df.values
+        #combo_stats_array = combo_stats_df.values
+        combo_stats_array = None
+        try:
+            combo_stats_array = combo_stats_df.to_numpy()
+        except ValueError:
+            combo_stats_array = combo_stats_df.to_numpy(zero_copy_only=False)
         for row in combo_stats_array:
             drug = row[0]
             if drug not in drug_dict:
@@ -395,13 +410,23 @@ def get_drug_stats_df(data_root: str,
         # Convert ths list of lists to dataframe
         cols = ['DRUG_ID', 'NUM_CL', 'NUM_REC', 'AVG_GRTH', 'AVG_CORR']
         df = pd.DataFrame(drug_stats, columns=cols)
+        tb = Table.from_pandas(ctx, df)
 
         # Convert data type into generic python types
-        df[['NUM_CL', 'NUM_REC']] = df[['NUM_CL', 'NUM_REC']].astype(int)
-        df[['AVG_GRTH', 'AVG_CORR']] = \
-            df[['AVG_GRTH', 'AVG_CORR']].astype(float)
-        df.set_index('DRUG_ID', inplace=True)
+        # df[['NUM_CL', 'NUM_REC']] = df[['NUM_CL', 'NUM_REC']].astype(int)
+        # df[['AVG_GRTH', 'AVG_CORR']] = \
+        #     df[['AVG_GRTH', 'AVG_CORR']].astype(float)
+        # df.set_index('DRUG_ID', inplace=True)
 
+        tb['NUM_CL'] = tb['NUM_CL'].astype(int)
+        tb['NUM_REC'] = tb['NUM_REC'].astype(int)
+        tb['AVG_GRTH'] = tb['AVG_GRTH'].astype(float)
+        tb['AVG_CORR'] = tb['AVG_CORR'].astype(float)
+        print(f">>>1 get_drug_stats_df.index : {tb.shape}"
+              f"{tb['DRUG_ID'].to_numpy(zero_copy_only=False).flatten().tolist()[0:5]}")
+        #tb.set_index('DRUG_ID', drop=True)
+        # print(f">>>2 get_drug_stats_df.index : {tb.shape}"
+        #       f"{tb.index.values.flatten().tolist()[0:5]}")
         # save to disk for future usage
         try:
             os.makedirs(os.path.join(data_root, PROC_FOLDER))
@@ -410,11 +435,20 @@ def get_drug_stats_df(data_root: str,
         #df.to_pickle(df_path)
 
     # Convert the dtypes for a more efficient, compact dataframe ##############
-    df[['NUM_CL', 'NUM_REC']] = df[['NUM_CL', 'NUM_REC']].astype(int_dtype)
-    df[['AVG_GRTH', 'AVG_CORR']] = \
-        df[['AVG_GRTH', 'AVG_CORR']].astype(float_dtype)
+    # df[['NUM_CL', 'NUM_REC']] = df[['NUM_CL', 'NUM_REC']].astype(int_dtype)
+    # df[['AVG_GRTH', 'AVG_CORR']] = \
+    #     df[['AVG_GRTH', 'AVG_CORR']].astype(float_dtype)
+    # print(f">>>3 get_drug_stats_df.index {tb.shape} : "
+    #       f"{tb.index.values.flatten().tolist()[0:5]}")
+    tb['NUM_CL'] = tb['NUM_CL'].astype('int32')
+    tb['NUM_REC'] = tb['NUM_REC'].astype('int32')
+    tb['AVG_GRTH'] = tb['AVG_GRTH'].astype('float32')
+    tb['AVG_CORR'] = tb['AVG_CORR'].astype('float32')
+    tb.set_index('DRUG_ID', drop=True)
+    print(f">>>4 get_drug_stats_df.index {tb.shape}: "
+          f"{tb.index.values.flatten().tolist()[0:5]}")
     print("=" * 80)
-    return df
+    return tb
 
 
 def get_drug_anlys_df(data_root: str):
@@ -467,13 +501,24 @@ def get_drug_anlys_df(data_root: str):
 
         print(f"DataFrame: {drug_stats_df.shape}")
 
-        drugs = drug_stats_df.index
+        #drugs = drug_stats_df.index
+        drugs = drug_stats_df.index.values.flatten().tolist()
 
-        #print("Index: ")
-        #print(drugs)
+        print(f">>> Drug Stats DF Index: {drugs[0:5]}")
 
-        avg_grth = drug_stats_df['AVG_GRTH'].values
-        avg_corr = drug_stats_df['AVG_CORR'].values
+        # avg_grth = drug_stats_df['AVG_GRTH'].values
+        # avg_corr = drug_stats_df['AVG_CORR'].values
+        avg_grth = None
+        avg_corr = None
+        try:
+            avg_grth = drug_stats_df['AVG_GRTH'].to_numpy().flatten()
+        except ValueError:
+            avg_grth = drug_stats_df['AVG_GRTH'].to_numpy(zero_copy_only=False).flatten()
+
+        try:
+            avg_corr = drug_stats_df['AVG_CORR'].to_numpy().flatten()
+        except ValueError:
+            avg_corr = drug_stats_df['AVG_CORR'].to_numpy(zero_copy_only=False).flatten()
 
         high_grth = (avg_grth > np.median(avg_grth))
         high_corr = (avg_corr > np.median(avg_corr))
@@ -485,7 +530,9 @@ def get_drug_anlys_df(data_root: str):
         # indicating four different categories.
         df = pd.DataFrame(drug_analysis_array,
                           columns=['DRUG_ID', 'HIGH_GROWTH', 'HIGH_CORR'])
-        df.set_index('DRUG_ID', inplace=True)
+        tb = Table.from_pandas(ctx, df)
+        tb.set_index('DRUG_ID', drop=True)
+        # df.set_index('DRUG_ID', inplace=True)
 
         print(f"drug_analysis_array: {drug_analysis_array.shape}")
         #print(drug_analysis_array)
@@ -499,7 +546,7 @@ def get_drug_anlys_df(data_root: str):
             pass
         #df.to_pickle(df_path)
         print("=" * 80)
-        return df
+        return tb
 
 
 if __name__ == '__main__':

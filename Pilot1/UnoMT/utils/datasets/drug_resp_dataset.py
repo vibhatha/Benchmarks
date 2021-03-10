@@ -550,7 +550,7 @@ class DrugRespDataset(data.Dataset):
 
         # Create an array to store all drugs' analysis results
         t_load_drug_start = time.time()
-        drug_analys_df = get_drug_anlys_df(self.__data_root)
+        drug_analys_tb = get_drug_anlys_df(self.__data_root)
         t_load_drug_end = time.time()
         cl_meta_tb = get_cl_meta_df(self.__data_root)
         cl_meta_tb.reset_index()
@@ -559,16 +559,18 @@ class DrugRespDataset(data.Dataset):
         cl_meta_tb.set_index(cl_meta_tb.column_names[0], drop=True)
         t_load_cl_meta_end = time.time()
 
-        drug_analys_tb = Table.from_pandas(ctx, drug_analys_df, preserve_index=True)
-        drug_analys_tb.set_index(drug_analys_tb.column_names[-1], drop=True)
+        #drug_analys_tb = Table.from_pandas(ctx, drug_analys_df, preserve_index=True)
+        #drug_analys_tb.set_index(drug_analys_tb.column_names[-1], drop=True)
+        print(f"drug_analys_tb index: {drug_analys_tb.index.values.tolist()[0:5]}, "
+              f"{drug_list[0:5]}")
 
         #cl_meta_tb = Table.from_pandas(ctx, cl_meta_df, preserve_index=True)
         #cl_meta_tb.set_index(cl_meta_tb.column_names[-1], drop=True)
 
-        assert drug_analys_tb.index.values.tolist() == drug_analys_df.index.values.tolist()
+        #assert drug_analys_tb.index.values.tolist() == drug_analys_df.index.values.tolist()
         assert cl_meta_tb.index.values.tolist() == cl_meta_df.index.values.tolist()
 
-        print(f">>> Shape of Drug Analys Data : {drug_analys_df.shape} {drug_analys_tb.shape}")
+        #print(f">>> Shape of Drug Analys Data : {drug_analys_df.shape} {drug_analys_tb.shape}")
         print(f">>> Shape of Cell Meta Data : {cl_meta_df.shape} {cl_meta_tb.shape}")
 
         #print(f">>> $$$ Drug Analys Results: {drug_analys_df.index.values}")
