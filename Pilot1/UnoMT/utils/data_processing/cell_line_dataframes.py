@@ -128,15 +128,15 @@ def get_rna_seq_df(data_root: str,
         # print(f"Pandas Shape After Duplicate Removal: {df.shape}")
 
         # Scaling the descriptor with given scaling method
-        print("Prior Index: ", tb.index.index_values[0:10], tb.shape, df1.shape)
-        index_values = tb.index.index_values
+        #print("Prior Index: ", tb.index.index_values[0:10], tb.shape, df1.shape)
+        index_values = tb.index
         df = tb.to_pandas()
         #df.set_index(tb.index.index_values, inplace=True)
         df = scale_dataframe(df, rnaseq_scaling)
         print("Shape after scale: ", df.shape)
         tb = Table.from_pandas(ctx, df)
         tb.set_index(index_values)
-        print("Post Index: ", tb.index.index_values[0:10], df.index.values.tolist()[0:10])
+        #print("Post Index: ", tb.index.index_values[0:10], df.index.values.tolist()[0:10])
 
         # Convert data type into generic python types
         #df = df.astype(float)

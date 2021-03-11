@@ -451,7 +451,7 @@ def get_drug_prop_df(data_root: str):
     # tb.reset_index()
     # df = tb.to_pandas()
     # df.set_index(df.columns[0], inplace=True, drop=True)
-    print(f"get_drug_prop_df.index {tb.index.values.tolist()[0:5]}")
+    #print(f"get_drug_prop_df.index {tb.index.values.tolist()[0:5]}")
     return tb
 
 
@@ -476,12 +476,12 @@ def get_drug_target_df(data_root: str,
     print("=" * 80)
     print("get_drug_target_df")
     tb = get_drug_prop_df(data_root=data_root)[['TARGET']]
-    print(f"1. get_drug_target_df.index {tb.index.values.tolist()[0:5]}")
+    #print(f"1. get_drug_target_df.index {tb.index.values.tolist()[0:5]}")
     # Only take the rows with specific target families for classification
     # df = df[df['TARGET'].isin(TGT_FAMS)][['TARGET']]
     tb = tb[tb['TARGET'].isin(TGT_FAMS)]['TARGET']
     # tb = tb[tb['TARGET'].isin(TGT_FAMS)][['TARGET']]
-    print(f"2. get_drug_target_df.index {tb.index.values.tolist()[0:5]}")
+    # print(f"2. get_drug_target_df.index {tb.index.values.tolist()[0:5]}")
 
     # print(f"Check IsIn {df.shape}, {tb.shape}")
     # df = tb.to_pandas()
@@ -497,7 +497,7 @@ def get_drug_target_df(data_root: str,
                                            zero_copy_only=False).flatten().tolist())
     tb_encoded = Table.from_list(ctx, ['TARGET'], [encoded_list])
     tb['TARGET'] = tb_encoded
-    print(f"3. get_drug_target_df.index {tb.index.values.tolist()[0:5]}")
+    #print(f"3. get_drug_target_df.index {tb.index.values.tolist()[0:5]}")
     # Convert the dtypes for a more efficient, compact dataframe
     # Note that it is safe to use int8 here for there are only 10 classes
     print("=" * 80)
@@ -538,11 +538,11 @@ def get_drug_qed_df(data_root: str,
 
     # Note that weighted QED is by default already in the range of [0, 1]
     # Scaling the weighted QED with given scaling method
-    print(f">>> Index Values: {tb_index.values.tolist()[0:5]}")
+    #print(f">>> Index Values: {tb_index.values.tolist()[0:5]}")
     df = tb.to_pandas()
     df = scale_dataframe(df, qed_scaling)
     tb = Table.from_pandas(ctx, df)
-    print(f">>> Index Values: {tb.index.values.tolist()[0:5]}")
+    #print(f">>> Index Values: {tb.index.values.tolist()[0:5]}")
     # Convert the dtypes for a more efficient, compact dataframe
     print("=" * 80)
     tb = tb.astype('float32')

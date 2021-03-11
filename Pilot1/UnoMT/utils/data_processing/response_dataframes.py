@@ -422,8 +422,8 @@ def get_drug_stats_df(data_root: str,
         tb['NUM_REC'] = tb['NUM_REC'].astype(int)
         tb['AVG_GRTH'] = tb['AVG_GRTH'].astype(float)
         tb['AVG_CORR'] = tb['AVG_CORR'].astype(float)
-        print(f">>>1 get_drug_stats_df.index : {tb.shape}"
-              f"{tb['DRUG_ID'].to_numpy(zero_copy_only=False).flatten().tolist()[0:5]}")
+        # print(f">>>1 get_drug_stats_df.index : {tb.shape}"
+        #       f"{tb['DRUG_ID'].to_numpy(zero_copy_only=False).flatten().tolist()[0:5]}")
         #tb.set_index('DRUG_ID', drop=True)
         # print(f">>>2 get_drug_stats_df.index : {tb.shape}"
         #       f"{tb.index.values.flatten().tolist()[0:5]}")
@@ -445,8 +445,8 @@ def get_drug_stats_df(data_root: str,
     tb['AVG_GRTH'] = tb['AVG_GRTH'].astype('float32')
     tb['AVG_CORR'] = tb['AVG_CORR'].astype('float32')
     tb.set_index('DRUG_ID', drop=True)
-    print(f">>>4 get_drug_stats_df.index {tb.shape}: "
-          f"{tb.index.values.flatten().tolist()[0:5]}")
+    # print(f">>>4 get_drug_stats_df.index {tb.shape}: "
+    #       f"{tb.index.values.flatten().tolist()[0:5]}")
     print("=" * 80)
     return tb
 
@@ -502,9 +502,10 @@ def get_drug_anlys_df(data_root: str):
         print(f"DataFrame: {drug_stats_df.shape}")
 
         #drugs = drug_stats_df.index
+        t_index_ret = time.time()
         drugs = drug_stats_df.index.values.flatten().tolist()
-
-        print(f">>> Drug Stats DF Index: {drugs[0:5]}")
+        t_index_ret = time.time() - t_index_ret
+        print(f">>> Drug Stats DF Index Time : {t_index_ret} s")
 
         # avg_grth = drug_stats_df['AVG_GRTH'].values
         # avg_corr = drug_stats_df['AVG_CORR'].values
@@ -530,7 +531,10 @@ def get_drug_anlys_df(data_root: str):
         # indicating four different categories.
         df = pd.DataFrame(drug_analysis_array,
                           columns=['DRUG_ID', 'HIGH_GROWTH', 'HIGH_CORR'])
+        t_from_pandas = time.time()
         tb = Table.from_pandas(ctx, df)
+        t_from_pandas = time.time() - t_from_pandas
+        print(f"From Pandas after math ops: {t_from_pandas} s")
         tb.set_index('DRUG_ID', drop=True)
         # df.set_index('DRUG_ID', inplace=True)
 
