@@ -97,28 +97,27 @@ def get_drug_resp_df(data_root: str,
                        target_folder=os.path.join(data_root, RAW_FOLDER))
         print("File Path: ", os.path.join(data_root, RAW_FOLDER, DRUG_RESP_FILENAME))
         t_s_load = time.time()
-        # df = pd.read_csv(
-        #     os.path.join(data_root, RAW_FOLDER, DRUG_RESP_FILENAME),
-        #     sep='\t',
-        #     header=0,
-        #     index_col=None,
-        #     usecols=[0, 1, 2, 4, 6, ])
-        csv_read_options = CSVReadOptions().use_threads(True).block_size(1 << 30).with_delimiter(
-            "\t")
-        tb: Table = read_csv(ctx, os.path.join(data_root, RAW_FOLDER, DRUG_RESP_FILENAME),
-                             csv_read_options)
-        tb = tb[['SOURCE', 'DRUG_ID', 'CELLNAME', 'LOG_CONCENTRATION', 'GROWTH']]
+        df = pd.read_csv(
+            os.path.join(data_root, RAW_FOLDER, DRUG_RESP_FILENAME),
+            sep='\t',
+            header=0,
+            index_col=None,)
+            #usecols=[0, 1, 2, 4, 6, ])
+        # csv_read_options = CSVReadOptions().use_threads(True).block_size(1 << 30).with_delimiter(
+        #     "\t")
+        # tb: Table = read_csv(ctx, os.path.join(data_root, RAW_FOLDER, DRUG_RESP_FILENAME),
+        #                      csv_read_options)
+        df = df[['SOURCE', 'DRUG_ID', 'CELLNAME', 'LOG_CONCENTRATION', 'GROWTH']]
         t_e_load = time.time()
 
         print(f" Data Loading Time : {t_e_load - t_s_load} s")
-        print(f" DataFrame shape {tb.shape}")
-        print("Column names: ", tb.column_names)
+        print(f" DataFrame shape {df.shape}")
+        print("Column names: ", df.columns)
 
         # Delete '-', which could be inconsistent between seq and meta
-        #df['CELLNAME'] = df['CELLNAME'].str.replace('-', '')
-        tb['CELLNAME'] = tb['CELLNAME'].applymap(lambda x: x.replace('-', ''))
+        df['CELLNAME'] = df['CELLNAME'].str.replace('-', '')
+        #tb['CELLNAME'] = tb['CELLNAME'].applymap(lambda x: x.replace('-', ''))
 
-        df = tb.to_pandas()
         # Encode data sources into numeric
         df['SOURCE'] = encode_label_to_int(data_root=data_root,
                                            dict_name='data_src_dict.txt',

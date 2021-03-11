@@ -219,13 +219,11 @@ def get_drug_dscptr_df(data_root: str,
         # Drop NaN values if the percentage of NaN exceeds nan_threshold
         # Note that columns (features) are dropped first, and then rows (drugs)
         valid_thresh = 1.0 - dscptr_nan_thresh
-        # df.dropna(axis=1, inplace=True, thresh=int(df.shape[0] * valid_thresh))
-        tb.dropna(axis=0, inplace=True)
-        # df.dropna(axis=0, inplace=True, thresh=int(df.shape[1] * valid_thresh))
-        tb.dropna(axis=1, inplace=True)
+        df.dropna(axis=1, inplace=True)#, thresh=int(df.shape[0] * valid_thresh))
+        #tb.dropna(axis=0, inplace=True)
+        df.dropna(axis=0, inplace=True)#, thresh=int(df.shape[1] * valid_thresh))
+        #tb.dropna(axis=1, inplace=True)
 
-        df = tb.to_pandas()
-        print(df)
         df.set_index(df.columns[0], inplace=True)
 
         # Fill the rest of NaN with column means
