@@ -448,10 +448,11 @@ def get_drug_prop_df(data_root: str):
             pass
         # df.to_pickle(df_path)
     print("=" * 80)
-    tb.reset_index()
-    df = tb.to_pandas()
-    df.set_index(df.columns[0], inplace=True, drop=True)
-    return df
+    # tb.reset_index()
+    # df = tb.to_pandas()
+    # df.set_index(df.columns[0], inplace=True, drop=True)
+    print(f"get_drug_prop_df.index {tb.index.values.tolist()[0:5]}")
+    return tb
 
 
 def get_drug_target_df(data_root: str,
@@ -474,25 +475,33 @@ def get_drug_target_df(data_root: str,
     """
     print("=" * 80)
     print("get_drug_target_df")
-    df = get_drug_prop_df(data_root=data_root)[['TARGET']]
-
+    tb = get_drug_prop_df(data_root=data_root)[['TARGET']]
+    print(f"1. get_drug_target_df.index {tb.index.values.tolist()[0:5]}")
     # Only take the rows with specific target families for classification
-    df = df[df['TARGET'].isin(TGT_FAMS)][['TARGET']]
+    # df = df[df['TARGET'].isin(TGT_FAMS)][['TARGET']]
+    tb = tb[tb['TARGET'].isin(TGT_FAMS)]['TARGET']
     # tb = tb[tb['TARGET'].isin(TGT_FAMS)][['TARGET']]
+    print(f"2. get_drug_target_df.index {tb.index.values.tolist()[0:5]}")
 
     # print(f"Check IsIn {df.shape}, {tb.shape}")
     # df = tb.to_pandas()
     # assert df.values.flatten().tolist() == tb.to_pandas().values.flatten().tolist()
 
     # Encode str formatted target families into integers
-    df['TARGET'] = encode_label_to_int(data_root=data_root,
+    # df['TARGET'] = encode_label_to_int(data_root=data_root,
+    #                                    dict_name='drug_target_dict.txt',
+    #                                    labels=df['TARGET'])
+    encoded_list = encode_label_to_int(data_root=data_root,
                                        dict_name='drug_target_dict.txt',
-                                       labels=df['TARGET'])
-
+                                       labels=tb['TARGET'].to_numpy(
+                                           zero_copy_only=False).flatten().tolist())
+    tb_encoded = Table.from_list(ctx, ['TARGET'], [encoded_list])
+    tb['TARGET'] = tb_encoded
+    print(f"3. get_drug_target_df.index {tb.index.values.tolist()[0:5]}")
     # Convert the dtypes for a more efficient, compact dataframe
     # Note that it is safe to use int8 here for there are only 10 classes
     print("=" * 80)
-    return df.astype(int_dtype)
+    return tb.astype('int8')
 
 
 def get_drug_qed_df(data_root: str,
@@ -518,22 +527,27 @@ def get_drug_qed_df(data_root: str,
     """
     print("=" * 80)
     print("get_drug_qed_df")
-    df = get_drug_prop_df(data_root=data_root)[['QED']]
-    tb = Table.from_pandas(ctx, df)
-    print(f">>> Table Shape Before Dropna {tb.shape} , {df.shape}")
+    tb = get_drug_prop_df(data_root=data_root)[['QED']]
+
+    print(f">>> Table Shape Before Dropna {tb.shape}")
     # Drop all the NaN values before scaling
-    df.dropna(axis=0, inplace=True)
-    # tb.dropna(axis=1, inplace=True) # TODO:: issue handle
-    print(f">>> get_drug_qed_df.DropNa : {df.shape} , {tb.shape}")
+    #df.dropna(axis=0, inplace=True)
+    tb_index = tb.index
+    tb.dropna(axis=1, inplace=True) # TODO:: issue handle
+    print(f">>> get_drug_qed_df.DropNa : {tb.shape}")
 
     # Note that weighted QED is by default already in the range of [0, 1]
     # Scaling the weighted QED with given scaling method
-    # df = tb.to_pandas()
+    print(f">>> Index Values: {tb_index.values.tolist()[0:5]}")
+    df = tb.to_pandas()
     df = scale_dataframe(df, qed_scaling)
-
+    tb = Table.from_pandas(ctx, df)
+    print(f">>> Index Values: {tb.index.values.tolist()[0:5]}")
     # Convert the dtypes for a more efficient, compact dataframe
     print("=" * 80)
-    return df.astype(float_dtype)
+    tb = tb.astype('float32')
+    tb.set_index(tb_index)
+    return tb
 
 
 if __name__ == '__main__':

@@ -70,11 +70,16 @@ class DrugQEDDataset(data.Dataset):
         self.__drug_feature_df.set_index(self.__drug_feature_df.columns[0], drop=True, inplace=True)
         self.__drug_feature_tb.set_index(self.__drug_feature_tb.column_names[0], drop=True)
 
-        self.__drug_qed_df = get_drug_qed_df(
+        self.__drug_qed_tb = get_drug_qed_df(
             data_root=data_root,
             qed_scaling=qed_scaling,
             float_dtype=float_dtype)
-
+        print(f"__drug_qed_tb shape: {self.__drug_qed_tb.shape}, "
+              f"{self.__drug_qed_tb.index.values.tolist()[0:5]}")
+        self.__drug_qed_tb.reset_index()
+        self.__drug_qed_df = self.__drug_qed_tb.to_pandas()
+        self.__drug_qed_df.set_index(self.__drug_qed_df.columns[0], drop=True, inplace=True)
+        self.__drug_qed_tb.set_index(self.__drug_qed_tb.column_names[0], drop=True)
         # Put all the drug feature in one column as a list with dtype
         self.__drug_feature_df['feature'] = \
             list(map(float_dtype, self.__drug_feature_df.values.tolist()))

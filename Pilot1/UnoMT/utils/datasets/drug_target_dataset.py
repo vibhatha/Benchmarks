@@ -66,9 +66,13 @@ class DrugTargetDataset(data.Dataset):
         self.__drug_feature_df.set_index(self.__drug_feature_df.columns[0], drop=True, inplace=True)
         self.__drug_feature_tb.set_index(self.__drug_feature_tb.column_names[0], drop=True)
 
-        self.__drug_target_df = get_drug_target_df(
+        self.__drug_target_tb = get_drug_target_df(
             data_root=data_root,
             int_dtype=int_dtype)
+        self.__drug_target_tb.reset_index()
+        self.__drug_target_df = self.__drug_target_tb.to_pandas()
+        self.__drug_target_df.set_index(self.__drug_target_df.columns[0], drop=True, inplace=True)
+        self.__drug_target_tb.set_index(self.__drug_target_tb.column_names[0], drop=True)
 
         # Put all the drug feature in one column as a list with dtype
         self.__drug_feature_df['feature'] = \
@@ -117,10 +121,9 @@ class DrugTargetDataset(data.Dataset):
                                   dtype=self.__output_dtype)
         target = np.int64(drug_target_data[0])
 
-        return  drug_feature, target
+        return drug_feature, target
 
     def __split_drug_resp(self):
-
         training_df, validation_df = \
             train_test_split(self.__drug_target_df,
                              test_size=self.__validation_ratio,
@@ -131,7 +134,6 @@ class DrugTargetDataset(data.Dataset):
 
 
 if __name__ == '__main__':
-
     logging.basicConfig(level=logging.DEBUG)
 
     # Test DrugRespDataset class
