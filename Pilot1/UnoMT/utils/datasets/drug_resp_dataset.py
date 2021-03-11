@@ -189,8 +189,8 @@ class DrugRespDataset(data.Dataset):
         self.__rnaseq_df = self.__rnaseq_tb.to_pandas()
         self.__rnaseq_df.set_index(self.__rnaseq_df.columns[0], drop=True, inplace=True)
         self.__rnaseq_tb.set_index(self.__rnaseq_tb.column_names[0], drop=True)
-        #self.__rnaseq_tb = Table.from_pandas(ctx, self.__rnaseq_df, preserve_index=True)
-        #self.__rnaseq_tb.set_index(self.__rnaseq_tb.column_names[-1], drop=True)
+        # self.__rnaseq_tb = Table.from_pandas(ctx, self.__rnaseq_df, preserve_index=True)
+        # self.__rnaseq_tb.set_index(self.__rnaseq_tb.column_names[-1], drop=True)
 
         # Train/validation split ##############################################
         print(f"Loaded Drug Resp DF Original Amount : {self.__drug_resp_tb.shape}")
@@ -205,11 +205,12 @@ class DrugRespDataset(data.Dataset):
         t_unq_start = time.time()
         tb_drugs_unique = self.__drug_resp_tb['DRUG_ID'].unique()
         tb_cells_unique = self.__drug_resp_tb['CELLNAME'].unique()
-        tb_drugs_unique_list = tb_drugs_unique.to_numpy(zero_copy_only=False).tolist() #list(
+        tb_drugs_unique_list = tb_drugs_unique.to_numpy(zero_copy_only=False).tolist()  # list(
         # tb_drugs_unique.to_pydict(
         # ).items())[
         # 0][1]
-        tb_cells_unique_list = tb_cells_unique.to_numpy(zero_copy_only=False).tolist()#list(tb_cells_unique.to_pydict(
+        tb_cells_unique_list = tb_cells_unique.to_numpy(
+            zero_copy_only=False).tolist()  # list(tb_cells_unique.to_pydict(
         # ).items())[
         # 0][1]
         t_unq_end = time.time()
@@ -220,7 +221,7 @@ class DrugRespDataset(data.Dataset):
         self.num_records = self.__drug_resp_tb.row_count  # len(self.__drug_resp_df)
         self.drug_feature_dim = self.__drug_feature_tb.column_count  # self.__drug_feature_df.shape[1]
         self.rnaseq_dim = self.__rnaseq_tb.column_count  # self.__rnaseq_df.shape[1]
-        #assert self.__rnaseq_df.shape[1] == self.__rnaseq_tb.column_count
+        # assert self.__rnaseq_df.shape[1] == self.__rnaseq_tb.column_count
         # #self.__rnaseq_df.shape[1]
         print(f"Drugs count : {len(tb_drugs_unique_list)}")
         print(f"Cells count : {len(tb_cells_unique_list)}")
@@ -236,7 +237,7 @@ class DrugRespDataset(data.Dataset):
         except ValueError:
             print("Data to Numpy Non-zero-copy")
             self.__drug_resp_array = self.__drug_resp_tb.to_numpy(zero_copy_only=False)
-        #self.__drug_resp_df.values
+        # self.__drug_resp_df.values
 
         # The following conversion will upcast dtypes
         # self.__drug_feature_dict = {idx: row.values.tolist() for idx, row in
@@ -338,7 +339,7 @@ class DrugRespDataset(data.Dataset):
             reduction_trim_tb = self.__drug_resp_tb['SOURCE'] == encoded_data_src
             reduction_trim_tb_list = reduction_trim_tb.to_numpy(
                 zero_copy_only=False).flatten().tolist()
-            #reduction_trim_tb_list = list(reduction_trim_tb.to_pydict().items())[0][1]
+            # reduction_trim_tb_list = list(reduction_trim_tb.to_pydict().items())[0][1]
             t_filter_by_val = time.time() - t_filter_by_val
             print(f"Time taken for filter data table {t_filter_by_val} s")
 
@@ -363,14 +364,14 @@ class DrugRespDataset(data.Dataset):
             self.__drug_resp_tb = Table.from_pandas(ctx, self.__drug_resp_df)
             t4 = time.time()
             print(f"3.$$$ self.__drug_resp_df.shape : {self.__drug_resp_df.shape} "
-                  f"{self.__drug_resp_tb.shape}, {t3 - t2} {t4-t3}")
+                  f"{self.__drug_resp_tb.shape}, {t3 - t2} {t4 - t3}")
 
         # Make sure that all three dataframes share the same drugs/cells
         logger.debug('Trimming dataframes on common cell lines and drugs ... ')
         print(">>>> Shape of Overlapping cell name and index values")
         # print(f"Overlapping Shapes {len(self.__rnaseq_df.index.values)}, "
         #       f"{self.__drug_resp_df['CELLNAME'].unique().shape}")
-        #print(f"RNASEQ Index values : {self.__rnaseq_df.index.values.shape}")
+        # print(f"RNASEQ Index values : {self.__rnaseq_df.index.values.shape}")
         # print(f"Drug response unique: {self.__drug_resp_df['CELLNAME'].unique()}")
 
         # drug_res_cell_unique = self.__drug_resp_df['CELLNAME'].unique()  # this is numpy ndarray
@@ -378,12 +379,12 @@ class DrugRespDataset(data.Dataset):
         t_unique_op_1 = time.time()
         drug_res_cell_unique_tb = self.__drug_resp_tb['CELLNAME'].unique()
         drug_res_cell_unique_np = drug_res_cell_unique_tb.to_numpy(
-            zero_copy_only=False).flatten()#np.array(list(
+            zero_copy_only=False).flatten()  # np.array(list(
         # drug_res_cell_unique_tb.to_pydict().items())[0][1])
 
         drug_res_drug_unique_tb = self.__drug_resp_tb['DRUG_ID'].unique()
         drug_res_drug_unique_np = drug_res_drug_unique_tb.to_numpy(
-            zero_copy_only=False).flatten()#np.array(list(
+            zero_copy_only=False).flatten()  # np.array(list(
         # drug_res_drug_unique_tb.to_pydict().items())[0][1])
         t_unique_op_1 = time.time() - t_unique_op_1
         print(f"Trim Unique Op 1 Time: {t_unique_op_1} s")
@@ -394,13 +395,13 @@ class DrugRespDataset(data.Dataset):
         # assert drug_res_cell_unique.tolist() == drug_res_cell_unique_np.tolist()
         # assert drug_res_drug_unique.tolist() == drug_res_drug_unique_np.tolist()
 
-        rnaseq_index_values = self.__rnaseq_tb.index.values # self.__rnaseq_df.index.values
+        rnaseq_index_values = self.__rnaseq_tb.index.values  # self.__rnaseq_df.index.values
         # this is numpy ndarray
         drug_feature_index_values = self.__drug_feature_tb.index.values
-        #self.__drug_feature_df.index.values
+        # self.__drug_feature_df.index.values
 
-        #assert drug_feature_index_values.tolist() == self.__drug_feature_tb.index.index_values
-        #assert self.__rnaseq_df.index.values.tolist() == self.__rnaseq_tb.index.index_values
+        # assert drug_feature_index_values.tolist() == self.__drug_feature_tb.index.index_values
+        # assert self.__rnaseq_df.index.values.tolist() == self.__rnaseq_tb.index.index_values
         cell_set_formation_time = time.time()
         cell_set = list(set(drug_res_cell_unique_np) & set(rnaseq_index_values))
         drug_set = list(set(drug_res_drug_unique_np) & set(drug_feature_index_values))
@@ -410,7 +411,7 @@ class DrugRespDataset(data.Dataset):
               f"{self.__drug_resp_tb.shape}")
         print(f">> cell_set {len(cell_set)}, {type(cell_set)},  {type(cell_set[0])}")
         print(f">> drug_set {len(drug_set)}, {type(drug_set)}, {type(drug_set[0])}")
-        #print(f">> drug_set_index {len(self.__drug_feature_df.index.values)}")
+        # print(f">> drug_set_index {len(self.__drug_feature_df.index.values)}")
 
         # drug_resp_df_cell_isin = self.__drug_resp_df['CELLNAME'].isin(cell_set)
         # drug_resp_df_drugid_isin = self.__drug_resp_df['DRUG_ID'].isin(drug_set)
@@ -432,7 +433,6 @@ class DrugRespDataset(data.Dataset):
         print(f"Isin Filter creation time : {t_isin_filter_cr} s ["
               f"{drug_resp_tb_cell_isin_np.shape}, {drug_resp_tb_drugid_isin_np.shape}]")
 
-
         # assert drug_resp_df_loc_filters.tolist() == drug_resp_tb_loc_filters.tolist()
 
         print(f">>> drug_resp_df_loc_filters : {type(drug_resp_tb_loc_filters)}")
@@ -446,22 +446,21 @@ class DrugRespDataset(data.Dataset):
         print(f"b: self.__drug_resp_df.shape : {self.__drug_resp_df.shape}, "
               f"{self.__drug_resp_tb.shape}")
 
-
-        #print(f"1. __rnaseq_df {self.__rnaseq_df.shape} {self.__rnaseq_tb.shape}")
-        #print(f"1. __drug_feature_df {self.__drug_feature_df.shape}
+        # print(f"1. __rnaseq_df {self.__rnaseq_df.shape} {self.__rnaseq_tb.shape}")
+        # print(f"1. __drug_feature_df {self.__drug_feature_df.shape}
         # {self.__drug_feature_tb.shape}")
-        #rnaseq_df_index_isin = self.__rnaseq_df.index.isin(cell_set)
-        #drug_feature_df_index_isin = self.__drug_feature_df.index.isin(drug_set)
+        # rnaseq_df_index_isin = self.__rnaseq_df.index.isin(cell_set)
+        # drug_feature_df_index_isin = self.__drug_feature_df.index.isin(drug_set)
         t_indexing_isin_filter = time.time()
         rnaseq_tb_index_isin = self.__rnaseq_tb.index.isin(cell_set)
         drug_feature_tb_index_isin = self.__drug_feature_tb.index.isin(drug_set)
         t_indexing_isin_filter = time.time() - t_indexing_isin_filter
         print(f"Indexing Isin Op Time : {t_indexing_isin_filter} s")
-        #assert rnaseq_df_index_isin.tolist() == rnaseq_tb_index_isin.tolist()
-        #assert drug_feature_df_index_isin.tolist() == drug_feature_tb_index_isin.tolist()
+        # assert rnaseq_df_index_isin.tolist() == rnaseq_tb_index_isin.tolist()
+        # assert drug_feature_df_index_isin.tolist() == drug_feature_tb_index_isin.tolist()
 
-        #self.__rnaseq_df = self.__rnaseq_df[rnaseq_df_index_isin]
-        #self.__drug_feature_df = self.__drug_feature_df[drug_feature_df_index_isin]
+        # self.__rnaseq_df = self.__rnaseq_df[rnaseq_df_index_isin]
+        # self.__drug_feature_df = self.__drug_feature_df[drug_feature_df_index_isin]
         t_index_based_tb_update = time.time()
         rnaseq_tb_filter = Table.from_list(ctx, ['filter'], [rnaseq_tb_index_isin.tolist()])
         drug_feature_tb_filter = Table.from_list(ctx, ['filter'],
@@ -475,8 +474,8 @@ class DrugRespDataset(data.Dataset):
         self.__drug_feature_tb.set_index(drug_feature_new_index)
         t_index_based_tb_update = time.time() - t_index_based_tb_update
         print(f"Index based Table filter time : {t_index_based_tb_update} s")
-        #print(f"2. __rnaseq_df {self.__rnaseq_df.shape} {self.__rnaseq_tb.shape}")
-        #print(f"2. __drug_feature_df {self.__drug_feature_df.shape}
+        # print(f"2. __rnaseq_df {self.__rnaseq_df.shape} {self.__rnaseq_tb.shape}")
+        # print(f"2. __drug_feature_df {self.__drug_feature_df.shape}
         # {self.__drug_feature_tb.shape}")
 
         print(f"c: self.__drug_resp_df.shape : {self.__drug_resp_df.shape}, "
@@ -535,9 +534,11 @@ class DrugRespDataset(data.Dataset):
         # drug_list = self.__drug_resp_df['DRUG_ID'].unique().tolist()
 
         cell_unq_tb = self.__drug_resp_tb['CELLNAME'].unique()
-        cell_list = list(cell_unq_tb.to_pydict().items())[0][1]
+        # cell_list = list(cell_unq_tb.to_pydict().items())[0][1]
+        cell_list = cell_unq_tb.to_numpy(zero_copy_only=False).flatten().tolist()
         drug_unq_tb = self.__drug_resp_tb['DRUG_ID'].unique()
-        drug_list = list(drug_unq_tb.to_pydict().items())[0][1]
+        # drug_list = list(drug_unq_tb.to_pydict().items())[0][1]
+        drug_list = drug_unq_tb.to_numpy(zero_copy_only=False).flatten().tolist()
         t_end_lst_end = time.time()
 
         # assert cell_list == cell_tb_list
@@ -553,28 +554,28 @@ class DrugRespDataset(data.Dataset):
         drug_analys_tb = get_drug_anlys_df(self.__data_root)
         t_load_drug_end = time.time()
         cl_meta_tb = get_cl_meta_df(self.__data_root)
-        cl_meta_tb.reset_index()
-        cl_meta_df = cl_meta_tb.to_pandas()
-        cl_meta_df.set_index(cl_meta_df.columns[0], drop=True, inplace=True)
-        cl_meta_tb.set_index(cl_meta_tb.column_names[0], drop=True)
+        # cl_meta_tb.reset_index()
+        # cl_meta_df = cl_meta_tb.to_pandas()
+        # cl_meta_df.set_index(cl_meta_df.columns[0], drop=True, inplace=True)
+        # cl_meta_tb.set_index(cl_meta_tb.column_names[0], drop=True)
         t_load_cl_meta_end = time.time()
 
-        #drug_analys_tb = Table.from_pandas(ctx, drug_analys_df, preserve_index=True)
-        #drug_analys_tb.set_index(drug_analys_tb.column_names[-1], drop=True)
-        print(f"drug_analys_tb index: {drug_analys_tb.index.values.tolist()[0:5]}, "
-              f"{drug_list[0:5]}")
+        # drug_analys_tb = Table.from_pandas(ctx, drug_analys_df, preserve_index=True)
+        # drug_analys_tb.set_index(drug_analys_tb.column_names[-1], drop=True)
+        # print(f"drug_analys_tb index: {drug_analys_tb.index.values.tolist()[0:5]}, "
+        #       f"{drug_list[0:5]}")
 
-        #cl_meta_tb = Table.from_pandas(ctx, cl_meta_df, preserve_index=True)
-        #cl_meta_tb.set_index(cl_meta_tb.column_names[-1], drop=True)
+        # cl_meta_tb = Table.from_pandas(ctx, cl_meta_df, preserve_index=True)
+        # cl_meta_tb.set_index(cl_meta_tb.column_names[-1], drop=True)
 
-        #assert drug_analys_tb.index.values.tolist() == drug_analys_df.index.values.tolist()
-        assert cl_meta_tb.index.values.tolist() == cl_meta_df.index.values.tolist()
+        # assert drug_analys_tb.index.values.tolist() == drug_analys_df.index.values.tolist()
+        # assert cl_meta_tb.index.values.tolist() == cl_meta_df.index.values.tolist()
 
-        #print(f">>> Shape of Drug Analys Data : {drug_analys_df.shape} {drug_analys_tb.shape}")
-        print(f">>> Shape of Cell Meta Data : {cl_meta_df.shape} {cl_meta_tb.shape}")
+        # print(f">>> Shape of Drug Analys Data : {drug_analys_df.shape} {drug_analys_tb.shape}")
+        # print(f">>> Shape of Cell Meta Data : {cl_meta_df.shape} {cl_meta_tb.shape}")
 
-        #print(f">>> $$$ Drug Analys Results: {drug_analys_df.index.values}")
-        #print(f">>> $$$ Cell Meta Results: {cl_meta_df.index.values}")
+        # print(f">>> $$$ Drug Analys Results: {drug_analys_df.index.values}")
+        # print(f">>> $$$ Cell Meta Results: {cl_meta_df.index.values}")
         print(f">>> Time taken to load drug meta data: {t_load_drug_end - t_load_drug_start} s")
         print(f">>> Time taken to load cell meta data: {t_load_cl_meta_end - t_load_drug_end} s")
         t_itr_start = time.time()
@@ -694,7 +695,9 @@ class DrugRespDataset(data.Dataset):
             # assert train_res_filter.values.tolist() == train_res_tb_filter.to_pandas(
             # ).values.flatten().tolist()
 
-            train_res_tb_filter = list(train_res_tb_filter.to_pydict().items())[0][1]
+            # train_res_tb_filter = list(train_res_tb_filter.to_pydict().items())[0][1]
+            train_res_tb_filter = train_res_tb_filter.to_numpy(zero_copy_only=False).flatten(
+            ).tolist()
 
             training_drug_resp_df = self.__drug_resp_df.loc[train_res_tb_filter]
 
@@ -711,8 +714,10 @@ class DrugRespDataset(data.Dataset):
 
             # print(f"\t Filter Sizes {train_res_filter.shape} {validation_res_filter.shape}")
 
-            validation_res_tb_filter = list(validation_res_tb_filter.to_pydict().items())[0][1]
-
+            # validation_res_tb_filter = list(validation_res_tb_filter.to_pydict().items())[0][1]
+            validation_res_tb_filter = validation_res_tb_filter.to_numpy(
+                zero_copy_only=False).flatten(
+            ).tolist()
             validation_drug_resp_df = self.__drug_resp_df.loc[validation_res_tb_filter]
 
             t2 = time.time()
@@ -727,7 +732,8 @@ class DrugRespDataset(data.Dataset):
             # assert train_tb_filter.to_pandas().values.flatten().tolist() == \
             #        train_filter.values.tolist()
 
-            train_tb_filter = list(train_tb_filter.to_pydict().items())[0][1]
+            # train_tb_filter = list(train_tb_filter.to_pydict().items())[0][1]
+            train_tb_filter = train_tb_filter.to_numpy(zero_copy_only=False).flatten().tolist()
 
             training_drug_resp_df = self.__drug_resp_df.loc[train_tb_filter]
 
@@ -737,7 +743,9 @@ class DrugRespDataset(data.Dataset):
             # assert validation_tb_filter.to_pandas().values.flatten().tolist() == \
             #        validation_filter.values.tolist()
 
-            validation_tb_filter = list(validation_tb_filter.to_pydict().items())[0][1]
+            # validation_tb_filter = list(validation_tb_filter.to_pydict().items())[0][1]
+            validation_tb_filter = validation_tb_filter.to_numpy(
+                zero_copy_only=False).flatten().tolist()
 
             validation_drug_resp_df = self.__drug_resp_df.loc[validation_tb_filter]
             t2 = time.time()
@@ -752,7 +760,8 @@ class DrugRespDataset(data.Dataset):
             # assert train_tb_filter.to_pandas().values.flatten().tolist() ==
             # train_filter.values.tolist()
 
-            train_tb_filter = list(train_tb_filter.to_pydict().items())[0][1]
+            #train_tb_filter = list(train_tb_filter.to_pydict().items())[0][1]
+            train_tb_filter = train_tb_filter.to_numpy(zero_copy_only=False).flatten().tolist()
 
             training_drug_resp_df = self.__drug_resp_df.loc[train_tb_filter]
 
@@ -762,7 +771,8 @@ class DrugRespDataset(data.Dataset):
             # assert validation_tb_filter.to_pandas().values.flatten().tolist() == \
             #        validation_filter.values.tolist()
 
-            validation_tb_filter = list(validation_tb_filter.to_pydict().items())[0][1]
+            #validation_tb_filter = list(validation_tb_filter.to_pydict().items())[0][1]
+            validation_tb_filter = validation_tb_filter.to_numpy(zero_copy_only=False).flatten().tolist()
 
             validation_drug_resp_df = self.__drug_resp_df.loc[validation_tb_filter]
             t2 = time.time()
@@ -827,7 +837,7 @@ class DrugRespDataset(data.Dataset):
         self.__drug_resp_tb = Table.from_pandas(ctx, self.__drug_resp_df, preserve_index=True)
         self.__drug_resp_tb.set_index(self.__drug_resp_tb.column_names[-1], drop=True)
 
-        #print(f"============> Drug Resp DF Index Values{self.__drug_resp_df.index.values}")
+        # print(f"============> Drug Resp DF Index Values{self.__drug_resp_df.index.values}")
 
         print(f">>> $#* After Split Stage: {self.__drug_resp_df.shape},"
               f" {self.__drug_resp_tb.shape}")
@@ -861,4 +871,4 @@ if __name__ == '__main__':
               % ((len(trn_set.drugs) + len(val_set.drugs)),
                  (len(trn_set.cells) + len(val_set.cells)), src))
     t2 = time.time()
-    print(f"Total Time taken: {t2-t1} s")
+    print(f"Total Time taken: {t2 - t1} s")
